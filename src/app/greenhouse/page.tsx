@@ -63,7 +63,7 @@ export default function GreenhousePage() {
             
             <div className="space-y-4 text-lg text-muted-foreground">
               <p>
-              Greenhouse is the Dunamis Movement's school of revival and transformation. 
+              Greenhouse is the Dunamis Movement`s school of revival and transformation. 
               It offers an immersive experience focused on leadership development and the activation of the supernatural gifts of the Holy Spirit.
               </p>
               <p>
