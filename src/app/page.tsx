@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useRef, useEffect } from 'react';
-import Image from 'next/image';
 
 export default function Home() {
   const [question, setQuestion] = useState('');
@@ -45,20 +44,10 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Hero Section */}
-      <section className="relative h-[60vh] flex items-center justify-center bg-gradient-to-b from-primary/20 to-background">
-        <div className="absolute inset-0 -z-10">
-          <Image
-            src="/images/qa-hero.jpg"
-            alt="Q&A Hero Background"
-            fill
-            className="object-cover opacity-20"
-            priority
-          />
-        </div>
-        
-        <div className="relative text-center space-y-6 px-4 max-w-4xl mx-auto">
-          <h1 className="text-5xl md:text-6xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-primary to-[#4A7F68]">
+      {/* Hero Section - Simplified without mosaic */}
+      <section className="relative h-[60vh] flex items-center justify-center bg-green-gradient-radial">
+        <div className="relative text-center space-y-6 px-4 max-w-4xl mx-auto animate-fade-in">
+          <h1 className="text-5xl md:text-6xl font-bold tracking-tight text-gradient-green">
             Greenhouse 2025 Q&A
           </h1>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
@@ -69,16 +58,17 @@ export default function Home() {
 
       {/* Main Content */}
       <section className="py-16 px-4">
-        <div className="max-w-2xl mx-auto bg-white rounded-xl shadow-lg p-8">
+        <div className="max-w-2xl mx-auto bg-white rounded-xl shadow-md border-green-subtle card-hover-effect p-8">
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
               <label htmlFor="question" className="text-sm font-medium text-gray-700">
                 Your Question
               </label>
               <input
-                ref={inputRef}
                 id="question"
+                type="text"
                 value={question}
+                ref={inputRef}
                 onChange={(e) => setQuestion(e.target.value)}
                 placeholder="Ask a question about Greenhouse 2025..."
                 className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary"
@@ -87,7 +77,7 @@ export default function Home() {
             
             <button
               type="submit"
-              disabled={isLoading || !question.trim()}
+              disabled={!question.trim() || isLoading}
               className={`
                 w-full p-3 bg-primary text-white font-medium rounded-lg 
                 hover:bg-primary/90 transition-colors
@@ -96,20 +86,20 @@ export default function Home() {
             >
               {isLoading ? (
                 <span className="flex items-center justify-center">
-                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
                   Processing...
                 </span>
               ) : (
-                'Submit Question'
+                'Get Answer'
               )}
             </button>
           </form>
           
           {answer && (
-            <div className="mt-8 p-6 bg-gray-50 border-l-4 border-primary rounded-lg">
+            <div className="mt-8 p-6 bg-secondary/30 border-l-4 border-primary rounded-lg">
               <h3 className="font-medium text-gray-900 mb-2">Answer:</h3>
               <p className="text-gray-700 whitespace-pre-line">{answer}</p>
             </div>
@@ -118,9 +108,9 @@ export default function Home() {
       </section>
 
       {/* Features Section */}
-      <section className="py-16 bg-gray-50">
+      <section className="py-16 bg-green-pattern-light">
         <div className="max-w-6xl mx-auto px-4 text-center">
-          <h2 className="text-3xl font-bold mb-12">Why Use Our Q&A System?</h2>
+          <h2 className="text-3xl font-bold mb-12 text-gradient-green">Why Use Our Q&A System?</h2>
           
           <div className="grid md:grid-cols-3 gap-8">
             {[
@@ -140,8 +130,8 @@ export default function Home() {
                 icon: "🕒"
               }
             ].map((feature, index) => (
-              <div key={index} className="bg-white p-6 rounded-xl shadow-md">
-                <div className="text-4xl mb-4">{feature.icon}</div>
+              <div key={index} className="bg-white p-6 rounded-xl shadow-md border-green-subtle card-hover-effect">
+                <div className="text-4xl mb-4 text-primary">{feature.icon}</div>
                 <h3 className="text-xl font-semibold mb-2">{feature.title}</h3>
                 <p className="text-gray-600">{feature.description}</p>
               </div>

@@ -6,33 +6,33 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --background: 150 30% 99%;
+    --foreground: 220 20% 15%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 220 20% 15%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover-foreground: 220 20% 15%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    --primary: 160 84% 29%;
+    --primary-foreground: 355.7 100% 97.3%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 160 60% 96%;
+    --secondary-foreground: 160 84% 29%;
 
     --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted-foreground: 220 10% 45%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --accent: 160 60% 94%;
+    --accent-foreground: 160 84% 25%;
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --border: 220 20% 92%;
+    --input: 220 20% 92%;
+    --ring: 160 84% 29%;
 
     --radius: 0.5rem;
   }
@@ -104,8 +104,6 @@
   }
 }
 
-
-
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -124,4 +122,128 @@
     from { opacity: 0; transform: translateY(20px); }
     to { opacity: 1; transform: translateY(0); }
   }
+}
+
+/* Update the gradient backgrounds to be more subtle and elegant */
+.bg-green-gradient {
+  background: linear-gradient(135deg, 
+    rgba(5, 150, 105, 0.07) 0%, 
+    rgba(16, 185, 129, 0.04) 50%,
+    rgba(209, 250, 229, 0.06) 100%);
+}
+
+.bg-green-gradient-radial {
+  background: radial-gradient(
+    circle at center,
+    rgba(5, 150, 105, 0.06) 0%,
+    rgba(240, 253, 244, 0.4) 80%
+  );
+}
+
+/* Simplify the pattern backgrounds */
+.bg-green-pattern {
+  background-color: #fafefa;
+  background-image: none;
+}
+
+.bg-green-pattern-light {
+  background-color: #fcfefc;
+  background-image: none;
+}
+
+/* Card and section styles */
+.card-hover-effect {
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+/* Improved card hover effect */
+.card-hover-effect:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px -5px rgba(5, 150, 105, 0.06), 
+              0 6px 8px -6px rgba(5, 150, 105, 0.02);
+}
+
+/* Subtle border effect */
+.border-green-subtle {
+  border: 1px solid rgba(5, 150, 105, 0.08);
+}
+
+/* Improved text gradient */
+.text-gradient-green {
+  background: linear-gradient(90deg, #059669 0%, #10b981 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  color: transparent;
+}
+
+/* New container styles for consistent spacing */
+.container-custom {
+  width: 100%;
+  max-width: 1200px;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
+}
+
+/* Section styles */
+.section-padding {
+  padding-top: 5rem;
+  padding-bottom: 5rem;
+}
+
+/* Improved card styles */
+.card-custom {
+  background-color: white;
+  border-radius: 0.75rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 
+              0 2px 4px -1px rgba(0, 0, 0, 0.03);
+  overflow: hidden;
+  border: 1px solid rgba(5, 150, 105, 0.08);
+}
+
+/* Smooth transitions */
+.transition-custom {
+  transition: all 0.3s ease;
+}
+
+/* FAQ accordion styles */
+.faq-accordion {
+  border-bottom: 1px solid rgba(5, 150, 105, 0.1);
+}
+
+.faq-accordion:last-child {
+  border-bottom: none;
+}
+
+.faq-question {
+  cursor: pointer;
+  padding: 1.25rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 500;
+}
+
+.faq-answer {
+  padding: 0 1.25rem 1.25rem;
+  color: var(--muted-foreground);
+}
+
+/* Add these animation classes to globals.css */
+.faq-answer-enter {
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease, opacity 0.3s ease, padding 0.3s ease;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.faq-answer-enter-active {
+  max-height: 500px;
+  opacity: 1;
+  padding: 1rem;
+  transition: max-height 0.3s ease, opacity 0.3s ease, padding 0.3s ease;
 }

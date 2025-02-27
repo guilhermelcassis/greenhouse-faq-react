@@ -2,6 +2,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import React from 'react';
+import { featuredGreenhouseImages, featuredMissionImages } from '@/data/greenhouseImages';
 
 const testimonials = [
   {
@@ -27,69 +28,40 @@ const testimonials = [
 export default function GreenhousePage() {
   return (
     <div className="min-h-screen bg-background">
-      {/* Hero Section */}
-      <section className="relative h-screen flex items-center justify-center bg-gradient-to-b from-primary/20 to-background">
-        <div className="absolute inset-0 bg-[url('/images/greenhouse-hero.jpg')] bg-cover bg-center -z-10" />
-        
-        <div className="relative text-center space-y-8 px-4">
-          <div className="space-y-4">
-            <h1 className="text-5xl md:text-7xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-primary to-[#4A7F68]">
-              Greenhouse Europe 2025
-            </h1>
-            <p className="text-xl md:text-2xl text-muted-foreground max-w-2xl mx-auto">
-              Transformative 10-day immersion in spiritual leadership and supernatural activation
-            </p>
-          </div>
-          
-          <Link 
-            href="https://form.respondi.app/hefJH0HK" 
-            target="_blank"
-            className="inline-flex items-center justify-center h-14 px-8 text-lg bg-primary hover:bg-primary/90 text-white rounded-md font-medium transition-colors"
-          >
-            Apply Now
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1"><path d="m9 18 6-6-6-6"/></svg>
-          </Link>
-        </div>
-      </section>
-
-      {/* About Section */}
-      <section className="py-24 px-4 max-w-7xl mx-auto">
-        <div className="grid md:grid-cols-2 gap-12 items-center">
-          <div className="space-y-6">
-            <div className="space-y-2">
-              <span className="text-sm font-semibold text-primary">About the Program</span>
-              <h2 className="text-4xl font-bold tracking-tight">Spiritual Leadership Development</h2>
-            </div>
-            
-            <div className="space-y-4 text-lg text-muted-foreground">
-              <p>
-              Greenhouse is the Dunamis Movement`s school of revival and transformation. 
-              It offers an immersive experience focused on leadership development and the activation of the supernatural gifts of the Holy Spirit.
-              </p>
-              <p>
-              The program aims to equip students to influence and impact various spheres of society with the power and radical love of Jesus. 
-              Students are encouraged to live out the Great Commission and carry the message of Christ to all nations.
-              </p>
-            </div>
-          </div>
-
-          <div className="relative aspect-video rounded-2xl overflow-hidden shadow-xl">
-            <Image
-              src="/images/greenhouse-about.jpg"
-              alt="Greenhouse participants"
-              className="object-cover"
-              fill
-            />
+      {/* Hero Section - Styled like main page */}
+      <section className="relative h-[60vh] flex items-center justify-center bg-green-gradient-radial">
+        <div className="relative text-center space-y-6 px-4 max-w-4xl mx-auto animate-fade-in">
+          <h1 className="text-5xl md:text-6xl font-bold tracking-tight text-gradient-green">
+            Greenhouse 2025
+          </h1>
+          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+            A 10-day immersive program focused on spiritual leadership development and supernatural activation
+          </p>
+          <div className="flex flex-wrap justify-center gap-4 pt-4">
+            <Link 
+              href="https://form.respondi.app/hefJH0HK" 
+              target="_blank"
+              className="inline-flex items-center justify-center h-12 px-6 text-lg bg-primary text-white hover:bg-primary/90 rounded-md font-medium transition-colors card-hover-effect"
+            >
+              Apply Now
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="ml-2 h-5 w-5"><path d="m9 18 6-6-6-6"/></svg>
+            </Link>
+            <Link 
+              href="/faq" 
+              className="inline-flex items-center justify-center h-12 px-6 text-lg bg-white text-primary hover:bg-secondary rounded-md font-medium transition-colors border-green-subtle card-hover-effect"
+            >
+              Learn More
+            </Link>
           </div>
         </div>
       </section>
 
       {/* Details Section */}
-      <section className="bg-primary/5 py-24">
-        <div className="max-w-7xl mx-auto px-4 space-y-16">
+      <section className="py-16 px-4 bg-white">
+        <div className="max-w-7xl mx-auto space-y-16">
           <div className="text-center space-y-4">
             <span className="text-sm font-semibold text-primary">Program Details</span>
-            <h2 className="text-4xl font-bold tracking-tight">Key Information</h2>
+            <h2 className="text-4xl font-bold tracking-tight text-gradient-green">Key Information</h2>
           </div>
 
           <div className="grid md:grid-cols-3 gap-8">
@@ -98,74 +70,152 @@ export default function GreenhousePage() {
               { title: "Location", content: "Palermo, Italy" },
               { title: "Investment", content: "€850 (All Inclusive)" }
             ].map((item, index) => (
-              <div key={index} className="rounded-xl border bg-card text-card-foreground shadow hover:shadow-lg transition-shadow">
+              <div key={index} className="rounded-xl bg-white text-card-foreground shadow-md border-green-subtle card-hover-effect">
                 <div className="flex flex-col space-y-1.5 p-6">
                   <h3 className="text-2xl font-semibold text-primary">{item.title}</h3>
-                </div>
-                <div className="p-6 pt-0">
-                  <p className="text-lg text-muted-foreground">{item.content}</p>
+                  <p className="text-xl text-muted-foreground">{item.content}</p>
                 </div>
               </div>
             ))}
           </div>
-        </div>
-      </section>
-
-      {/* Testimonials Section */}
-      <section className="py-24 px-4 max-w-7xl mx-auto">
-        <div className="space-y-16">
-          <div className="text-center space-y-4">
-            <span className="text-sm font-semibold text-primary">Testimonials</span>
-            <h2 className="text-4xl font-bold tracking-tight">Transformative Experiences</h2>
+          
+          {/* About Section */}
+          <div className="grid md:grid-cols-2 gap-12 items-center">
+            <div className="space-y-6">
+              <span className="text-sm font-semibold text-primary">About Greenhouse</span>
+              <h3 className="text-3xl font-bold tracking-tight">What to Expect</h3>
+              <div className="space-y-4 text-muted-foreground">
+                <p>
+                  Greenhouse is a 10-day immersive program designed to equip and empower the next generation of leaders. 
+                  Through powerful teaching, practical activation, and community living, participants experience 
+                  transformational growth in their spiritual lives and leadership abilities.
+                </p>
+                <p>
+                  The program includes daily worship, teaching sessions, small group discussions, 
+                  activation exercises, and evening services. There will also be time for personal 
+                  reflection, community building, and exploring the beautiful surroundings of Sicily.
+                </p>
+              </div>
+            </div>
+            <div className="rounded-xl overflow-hidden shadow-lg">
+              <Image 
+                src="/images/greenhouse/image (1).jpg" 
+                alt="Greenhouse participants" 
+                width={600} 
+                height={400} 
+                className="w-full h-auto object-cover"
+              />
+            </div>
           </div>
-
-          <div className="grid md:grid-cols-3 gap-8">
-            {testimonials.map((testimonial, index) => (
-              <div key={index} className="rounded-xl border bg-card text-card-foreground shadow group hover:shadow-lg transition-shadow">
-                <div className="p-8 space-y-6">
-                  <p className="text-lg text-muted-foreground italic">
-                    {testimonial.text}
-                  </p>
-                  <div className="flex items-center gap-4">
-                    <div className="relative h-12 w-12 rounded-full overflow-hidden">
-                      <Image
-                        src={testimonial.image}
-                        alt={testimonial.name}
-                        fill
+          
+          {/* Testimonials */}
+          <div className="space-y-8">
+            <div className="text-center">
+              <span className="text-sm font-semibold text-primary">Testimonials</span>
+              <h3 className="text-3xl font-bold tracking-tight text-gradient-green">What Alumni Say</h3>
+            </div>
+            
+            <div className="grid md:grid-cols-3 gap-8">
+              {testimonials.map((testimonial, index) => (
+                <div key={index} className="bg-white p-6 rounded-xl shadow-md border-green-subtle card-hover-effect">
+                  <div className="flex items-center space-x-4 mb-4">
+                    <div className="relative w-12 h-12 rounded-full overflow-hidden">
+                      <Image 
+                        src={testimonial.image} 
+                        alt={testimonial.name} 
+                        fill 
                         className="object-cover"
                       />
                     </div>
                     <div>
-                      <p className="font-semibold">{testimonial.name}</p>
+                      <h4 className="font-semibold">{testimonial.name}</h4>
                       <p className="text-sm text-muted-foreground">{testimonial.role}</p>
                     </div>
                   </div>
+                  <p className="text-muted-foreground italic">{testimonial.text}</p>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Gallery Section */}
+      <section className="py-16 bg-green-pattern-light">
+        <div className="max-w-7xl mx-auto px-4 space-y-16">
+          {/* Greenhouse Gallery */}
+          <div className="space-y-8">
+            <div className="text-center space-y-4">
+              <span className="text-sm font-semibold text-primary">Photo Gallery</span>
+              <h2 className="text-4xl font-bold tracking-tight text-gradient-green">Moments from Previous Editions</h2>
+              <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+                Browse through our gallery to see the Greenhouse experience
+              </p>
+            </div>
+            
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {featuredGreenhouseImages.slice(0, 16).map((image, index) => (
+                <div 
+                  key={index} 
+                  className="relative aspect-square rounded-lg overflow-hidden shadow-md border-green-subtle card-hover-effect"
+                >
+                  <Image
+                    src={image.src}
+                    alt={image.alt || `Greenhouse image ${index + 1}`}
+                    fill
+                    className="object-cover"
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+          
+          {/* Mission Trips Gallery - Now matching the same layout */}
+          <div className="space-y-8">
+            <div className="text-center space-y-4">
+              <span className="text-sm font-semibold text-primary">Mission Trips</span>
+              <h2 className="text-4xl font-bold tracking-tight text-gradient-green">Impact Around the World</h2>
+              <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+                See how our graduates are making a difference globally
+              </p>
+            </div>
+            
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {featuredMissionImages.slice(0, 16).map((image, index) => (
+                <div 
+                  key={index} 
+                  className="relative aspect-square rounded-lg overflow-hidden shadow-md border-green-subtle card-hover-effect"
+                >
+                  <Image
+                    src={image.src}
+                    alt={image.alt || `Mission trip image ${index + 1}`}
+                    fill
+                    className="object-cover"
+                  />
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </section>
 
       {/* CTA Section */}
-      <section className="bg-gradient-to-r from-primary to-[#4A7F68] py-24">
-        <div className="max-w-4xl mx-auto px-4 text-center space-y-8">
-          <div className="space-y-4">
-            <h2 className="text-4xl font-bold tracking-tight text-white">
-              Ready for Transformation?
-            </h2>
-            <p className="text-xl text-white/90">
-              Limited spots available for this life-changing experience
-            </p>
-          </div>
+      <section className="py-16 bg-primary">
+        <div className="max-w-4xl mx-auto px-4 text-center space-y-6">
+          <h2 className="text-3xl font-bold text-white">
+            Ready to Apply?
+          </h2>
+          <p className="text-xl text-white/90">
+            Limited spots available for this life-changing experience
+          </p>
           
           <Link 
             href="https://form.respondi.app/hefJH0HK" 
             target="_blank"
-            className="inline-flex items-center justify-center h-14 px-8 text-lg bg-white text-primary hover:bg-white/90 rounded-md font-medium transition-colors"
+            className="inline-flex items-center justify-center h-14 px-8 text-lg bg-white text-primary hover:bg-white/90 rounded-md font-medium transition-colors card-hover-effect"
           >
             Secure Your Spot
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1"><path d="m9 18 6-6-6-6"/></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="ml-2 h-5 w-5"><path d="m9 18 6-6-6-6"/></svg>
           </Link>
         </div>
       </section>
