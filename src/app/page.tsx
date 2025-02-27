@@ -47,7 +47,15 @@ export default function Home() {
     <div className="min-h-screen bg-background">
       {/* Hero Section */}
       <section className="relative h-[60vh] flex items-center justify-center bg-gradient-to-b from-primary/20 to-background">
-        <div className="absolute inset-0 bg-[url('/images/qa-hero.jpg')] bg-cover bg-center opacity-20 -z-10" />
+        <div className="absolute inset-0 -z-10">
+          <Image
+            src="/images/qa-hero.jpg"
+            alt="Q&A Hero Background"
+            fill
+            className="object-cover opacity-20"
+            priority
+          />
+        </div>
         
         <div className="relative text-center space-y-6 px-4 max-w-4xl mx-auto">
           <h1 className="text-5xl md:text-6xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-primary to-[#4A7F68]">

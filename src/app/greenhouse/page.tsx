@@ -63,8 +63,8 @@ export default function GreenhousePage() {
             
             <div className="space-y-4 text-lg text-muted-foreground">
               <p>
-                Greenhouse is the Dunamis Movement's intensive training program focused on activating 
-                supernatural gifts and developing leaders who impact society through Christ's love.
+                Greenhouse is the Dunamis Movement`s intensive training program focused on activating 
+                supernatural gifts and developing leaders who impact society through Christ`s love.
               </p>
               <p>
                 Our 2025 edition in Sicily combines ancient spiritual wisdom with modern leadership 
@@ -124,7 +124,7 @@ export default function GreenhousePage() {
               <div key={index} className="rounded-xl border bg-card text-card-foreground shadow group hover:shadow-lg transition-shadow">
                 <div className="p-8 space-y-6">
                   <p className="text-lg text-muted-foreground italic">
-                    "{testimonial.text}"
+                    {testimonial.text}
                   </p>
                   <div className="flex items-center gap-4">
                     <div className="relative h-12 w-12 rounded-full overflow-hidden">

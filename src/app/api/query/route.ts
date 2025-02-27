@@ -28,8 +28,9 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json({ answer: relevantAnswer });
-  } catch (error) {
-    console.error('Error processing question:', error);
+  } catch (error: Error | unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
+    console.error('Error processing question:', errorMessage);
     return NextResponse.json(
       { message: 'Internal server error' },
       { status: 500 }
@@ -38,10 +39,10 @@ export async function POST(req: Request) {
 }
 
 // Helper function to find the most relevant answer using OpenAI
-async function findRelevantAnswerWithOpenAI(question: string, faqData: any[]) {
+async function findRelevantAnswerWithOpenAI(question: string, faqData: Array<{title: string, questions: Array<{question: string, answer: string}>}>) {
   // Flatten the FAQ data into a single array of questions and answers
   const allQuestions = faqData.flatMap((topic) =>
-    topic.questions.map((faq: any) => ({
+    topic.questions.map((faq) => ({
       question: faq.question,
       answer: faq.answer,
     }))
@@ -59,5 +60,7 @@ async function findRelevantAnswerWithOpenAI(question: string, faqData: any[]) {
     max_tokens: 150, // Limit the response length
   });
 
+  // The response is already a JavaScript object, no need to call .json()
+  // Just extract the text from the first choice
   return response.choices[0].text.trim();
 }

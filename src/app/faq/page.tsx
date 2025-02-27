@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import faqData from '@/data/faqData.json';
+import Link from 'next/link';
 
 export default function FAQPage() {
   const [openCategoryIndex, setOpenCategoryIndex] = useState<number | null>(0); // Open first category by default
@@ -109,12 +110,9 @@ export default function FAQPage() {
             Use our Q&A system to get personalized answers
           </p>
           
-          <a 
-            href="/"
-            className="inline-flex items-center justify-center h-12 px-6 text-lg bg-white text-primary hover:bg-white/90 rounded-md font-medium transition-colors"
-          >
+          <Link href="/" className="inline-flex items-center justify-center h-12 px-6 text-lg bg-white text-primary hover:bg-white/90 rounded-md font-medium transition-colors">
             Go to Q&A
-          </a>
+          </Link>
         </div>
       </section>
 
