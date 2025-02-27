@@ -1,8 +1,42 @@
+"use client";
+
 // src/app/greenhouse/page.tsx
 import Link from 'next/link';
 import Image from 'next/image';
-import React from 'react';
+import React, { useState } from 'react';
 import { featuredGreenhouseImages, featuredMissionImages } from '@/data/greenhouseImages';
+
+// Image Modal Component
+function ImageModal({ image, onClose }: { image: { src: string; alt?: string }; onClose: () => void }) {
+  return (
+    <div 
+      className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4"
+      onClick={onClose}
+    >
+      <div className="relative max-w-4xl max-h-[90vh] w-full">
+        <button 
+          onClick={onClose}
+          className="absolute -top-12 right-0 text-white bg-transparent hover:bg-white/10 rounded-full p-2"
+          aria-label="Close modal"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+        <div className="relative w-full h-[80vh]">
+          <Image
+            src={image.src}
+            alt={image.alt || "Gallery image"}
+            fill
+            className="object-contain"
+            sizes="(max-width: 768px) 100vw, 80vw"
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
 
 const testimonials = [
   {
@@ -26,8 +60,25 @@ const testimonials = [
 ];
 
 export default function GreenhousePage() {
+  const [selectedImage, setSelectedImage] = useState<{ src: string; alt?: string } | null>(null);
+
+  const openModal = (image: { src: string; alt?: string }) => {
+    setSelectedImage(image);
+    // Prevent body scrolling when modal is open
+    document.body.style.overflow = 'hidden';
+  };
+
+  const closeModal = () => {
+    setSelectedImage(null);
+    // Restore body scrolling
+    document.body.style.overflow = 'auto';
+  };
+
   return (
     <div className="min-h-screen bg-background">
+      {/* Modal */}
+      {selectedImage && <ImageModal image={selectedImage} onClose={closeModal} />}
+
       {/* Hero Section - Styled like main page */}
       <section className="relative h-[60vh] flex items-center justify-center bg-green-gradient-radial">
         <div className="relative text-center space-y-6 px-4 max-w-4xl mx-auto animate-fade-in">
@@ -149,7 +200,7 @@ export default function GreenhousePage() {
               <span className="text-sm font-semibold text-primary">Photo Gallery</span>
               <h2 className="text-4xl font-bold tracking-tight text-gradient-green">Moments from Previous Editions</h2>
               <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-                Browse through our gallery to see the Greenhouse experience
+                Browse through our gallery to see the Greenhouse experience (click to enlarge)
               </p>
             </div>
             
@@ -157,13 +208,14 @@ export default function GreenhousePage() {
               {featuredGreenhouseImages.slice(0, 16).map((image, index) => (
                 <div 
                   key={index} 
-                  className="relative aspect-square rounded-lg overflow-hidden shadow-md border-green-subtle card-hover-effect"
+                  className="relative aspect-square rounded-lg overflow-hidden shadow-md border-green-subtle card-hover-effect cursor-pointer"
+                  onClick={() => openModal(image)}
                 >
                   <Image
                     src={image.src}
                     alt={image.alt || `Greenhouse image ${index + 1}`}
                     fill
-                    className="object-cover"
+                    className="object-cover transition-transform hover:scale-105"
                   />
                 </div>
               ))}
@@ -176,7 +228,7 @@ export default function GreenhousePage() {
               <span className="text-sm font-semibold text-primary">Mission Trips</span>
               <h2 className="text-4xl font-bold tracking-tight text-gradient-green">Impact Around the World</h2>
               <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-                See how our graduates are making a difference globally
+                See how our graduates are making a difference globally (click to enlarge)
               </p>
             </div>
             
@@ -184,13 +236,14 @@ export default function GreenhousePage() {
               {featuredMissionImages.slice(0, 16).map((image, index) => (
                 <div 
                   key={index} 
-                  className="relative aspect-square rounded-lg overflow-hidden shadow-md border-green-subtle card-hover-effect"
+                  className="relative aspect-square rounded-lg overflow-hidden shadow-md border-green-subtle card-hover-effect cursor-pointer"
+                  onClick={() => openModal(image)}
                 >
                   <Image
                     src={image.src}
                     alt={image.alt || `Mission trip image ${index + 1}`}
                     fill
-                    className="object-cover"
+                    className="object-cover transition-transform hover:scale-105"
                   />
                 </div>
               ))}
