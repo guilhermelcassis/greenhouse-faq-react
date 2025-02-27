@@ -62,7 +62,7 @@ export default function Home() {
             Greenhouse 2025 Q&A
           </h1>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Ask your questions about the summer camp and get instant answers from our AI assistant.
+            Ask your questions about Dunamis Greenhouse and get instant answers from our AI assistant.
           </p>
         </div>
       </section>

@@ -63,12 +63,12 @@ export default function GreenhousePage() {
             
             <div className="space-y-4 text-lg text-muted-foreground">
               <p>
-                Greenhouse is the Dunamis Movement`s intensive training program focused on activating 
-                supernatural gifts and developing leaders who impact society through Christ`s love.
+              Greenhouse is the Dunamis Movement's school of revival and transformation. 
+              It offers an immersive experience focused on leadership development and the activation of the supernatural gifts of the Holy Spirit.
               </p>
               <p>
-                Our 2025 edition in Sicily combines ancient spiritual wisdom with modern leadership 
-                practices in a transformative retreat setting.
+              The program aims to equip students to influence and impact various spheres of society with the power and radical love of Jesus. 
+              Students are encouraged to live out the Great Commission and carry the message of Christ to all nations.
               </p>
             </div>
           </div>
