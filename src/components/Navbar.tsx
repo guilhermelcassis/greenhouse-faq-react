@@ -50,9 +50,9 @@ export default function Navbar() {
           </div>
 
           {/* Navigation Links (Desktop) */}
-          <div className="hidden md:flex space-x-8">
+          <div className="hidden md:flex items-center space-x-8">
             <NavLink href="/greenhouse" currentPath={pathname} label="About" />
-            <NavLink href="/" currentPath={pathname} label="Q&A" />
+            <NavLink href="/" currentPath={pathname} label="Ask AI" />
             <NavLink href="/faq" currentPath={pathname} label="FAQ" />
             <Link 
               href="https://form.respondi.app/hefJH0HK" 
@@ -69,7 +69,7 @@ export default function Navbar() {
           <div className="md:hidden py-4 border-t border-gray-100">
             <div className="flex flex-col space-y-4">
               <NavLink href="/greenhouse" currentPath={pathname} label="About" mobile />
-              <NavLink href="/" currentPath={pathname} label="Q&A" mobile />
+              <NavLink href="/" currentPath={pathname} label="Ask AI" mobile />
               <NavLink href="/faq" currentPath={pathname} label="FAQ" mobile />
               <Link 
                 href="https://form.respondi.app/hefJH0HK" 

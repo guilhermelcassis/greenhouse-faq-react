@@ -6,7 +6,7 @@ import React from 'react';
 const testimonials = [
   {
     name: "Guilherme Assis",
-    role: "Alumni 2023",
+    role: "Alumni 2017",
     text: "Greenhouse was a life-changing experience. I grew so much in my faith and leadership skills!",
     image: "/images/avatar1.jpg"
   },
