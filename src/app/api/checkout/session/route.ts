@@ -8,6 +8,12 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
   apiVersion: '2025-02-24.acacia',
 });
 
+interface Item {
+  name: string;
+  amount: number;
+  quantity: number;
+}
+
 export async function POST(req: NextRequest) {
   try {
     // Get authorization token from the request headers
@@ -16,7 +22,7 @@ export async function POST(req: NextRequest) {
     
     if (!token) {
       // Fallback to cookie
-      const cookieStore = cookies();
+      const cookieStore = await cookies();
       const idToken = cookieStore.get('firebaseIdToken')?.value;
       
       if (!idToken) {
@@ -51,7 +57,7 @@ export async function POST(req: NextRequest) {
     // Create a Stripe checkout session
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
-      line_items: items.map((item: any) => ({
+      line_items: items.map((item: Item) => ({
         price_data: {
           currency: 'eur',
           product_data: {
@@ -74,7 +80,7 @@ export async function POST(req: NextRequest) {
       userId,
       items,
       totalAmount: items.reduce(
-        (sum: number, item: any) => sum + (item.amount * item.quantity) / 100, 
+        (sum: number, item: Item) => sum + (item.amount * item.quantity) / 100, 
         0
       ),
       status: 'created',
@@ -82,11 +88,9 @@ export async function POST(req: NextRequest) {
     });
     
     return NextResponse.json({ sessionId: session.id });
-  } catch (error) {
-    console.error('Error creating checkout session:', error);
-    return NextResponse.json(
-      { error: 'Failed to create checkout session' },
-      { status: 500 }
-    );
+  } catch (error: unknown) {
+    const typedError = error as Error & { message?: string };
+    console.error('Checkout session error:', typedError.message);
+    return NextResponse.json({ error: typedError.message || 'Checkout failed' }, { status: 500 });
   }
 } 

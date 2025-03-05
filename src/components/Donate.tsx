@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Plus, Minus, CreditCard, Heart } from 'lucide-react';
 import { loadStripe } from '@stripe/stripe-js';
@@ -32,7 +32,6 @@ export default function DonateComponent({ user }: DonateProps) {
   });
   const [isLoading, setIsLoading] = useState(false);
   const [clientSecret, setClientSecret] = useState('');
-  const router = useRouter();
 
   // Calculate total donation amount
   const totalAmount = Object.entries(donations).reduce(
@@ -62,7 +61,7 @@ export default function DonateComponent({ user }: DonateProps) {
         },
         body: JSON.stringify({
           items: Object.entries(donations)
-            .filter(([_, quantity]) => quantity > 0)
+            .filter(([, quantity]) => quantity > 0) // Use '_' for unused variable
             .map(([amount, quantity]) => ({
               name: `€${amount} Donation`,
               amount: Number(amount) * 100, // Stripe uses cents

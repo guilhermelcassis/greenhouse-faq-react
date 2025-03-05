@@ -1,37 +1,30 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/auth';
-import Image from 'next/image';
 
-// Hardcoded exchange rates for fallback
-const EXCHANGE_RATES: Record<string, number> = {
-  'usd': 0.85,
-  'gbp': 1.15,
-  'jpy': 0.0075,
-  'cad': 0.68,
-  'aud': 0.63,
-  'chf': 0.94,
-  'brl': 0.17, // BRL to EUR
-  'mxn': 0.043,
-  'eur': 1.0
+type Payment = {
+  id: string;
+  amount: number;
+  currency: string;
+  amount_eur: number;
+  status: string;
+  created: number;
+  email: string;
+  description?: string; // Optional field
+};
+
+type DebugInfo = {
+  rawData: unknown; // Use unknown instead of any
+  timestamp: string;
 };
 
 export default function Profile() {
   const { user } = useAuth();
-  const [payments, setPayments] = useState<any[]>([]);
+  const [payments, setPayments] = useState<Payment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [totalSpent, setTotalSpent] = useState(0);
-  const [debugInfo, setDebugInfo] = useState<any>(null);
-  
-  // Function to convert to EUR if needed
-  const convertToEUR = (amount: number, currency: string): number => {
-    if (!amount) return 0;
-    const currencyLower = (currency || 'eur').toLowerCase();
-    const rate = EXCHANGE_RATES[currencyLower] || 1;
-    const converted = Math.round(amount * rate);
-    console.log(`Currency conversion: ${amount} ${currency} → ${converted} EUR (rate: ${rate})`);
-    return converted;
-  };
+  const [debugInfo, setDebugInfo] = useState<DebugInfo | null>(null); // Specify debugInfo type
 
+  
   useEffect(() => {
     const fetchUserPayments = async () => {
       try {
@@ -63,10 +56,10 @@ export default function Profile() {
         }
         
         // Use the payments directly - DON'T MODIFY THE DATA
-        const processedPayments = data.payments || [];
+        const processedPayments: Payment[] = data.payments || []; // Specify Payment type
         
         // Log each payment for debugging
-        processedPayments.forEach((payment: any, index: number) => {
+        processedPayments.forEach((payment: Payment, index: number) => {
           console.log(`🔍 PROFILE: Payment ${index + 1}:`, {
             id: payment.id,
             amount: payment.amount,
@@ -81,7 +74,7 @@ export default function Profile() {
         // Calculate total spent in EUR directly from amount_eur
         console.log('🔍 PROFILE: Calculating total spent...');
         let total = 0;
-        processedPayments.forEach((payment: any, index: number) => {
+        processedPayments.forEach((payment: Payment, index: number) => {
           if (payment.status === 'succeeded') {
             // Always use amount_eur from server - it's already converted
             const amountInEUR = payment.amount_eur;
@@ -171,7 +164,7 @@ export default function Profile() {
               </tr>
             </thead>
             <tbody>
-              {payments.map((payment: any) => (
+              {payments.map((payment: Payment) => (
                 <tr key={payment.id} className="border-b">
                   <td className="py-2">
                     {new Date(payment.created * 1000).toLocaleDateString()}

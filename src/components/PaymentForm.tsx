@@ -77,9 +77,10 @@ export default function PaymentForm({
         // Payment successful
         onSuccess?.();
       }
-    } catch (error: any) {
-      setErrorMessage(error.message || 'An unexpected error occurred');
-      onError?.(error.message || 'An unexpected error occurred');
+    } catch (error: unknown) {
+      const typedError = error as Error & { message?: string };
+      setErrorMessage(typedError.message || 'An unexpected error occurred');
+      onError?.(typedError.message || 'An unexpected error occurred');
     } finally {
       setIsLoading(false);
     }

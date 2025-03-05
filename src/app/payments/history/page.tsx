@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
 import { Search, Calendar, ChevronLeft, ChevronRight, Filter, RefreshCw, CreditCard, FileText, DollarSign, Clock, AlertTriangle } from 'lucide-react';
@@ -32,20 +32,8 @@ interface Charge {
   balance_transaction?: BalanceTransaction;
 }
 
-interface PaymentIntent {
-  id: string;
-  amount: number;
-  currency: string;
-  status: string;
-  created: number;
-  description?: string;
-}
-
-// Define admin emails
-const ADMIN_EMAILS = [
-  'guilhermelcassis@gmail.com',
-  // Add other admin emails here
-];
+// Same admin emails
+const ADMIN_EMAILS = process.env.ADMIN_EMAILS ? process.env.ADMIN_EMAILS.split(',') : [];
 
 export default function PaymentHistory() {
   const { user, loading } = useAuth();
@@ -66,26 +54,7 @@ export default function PaymentHistory() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!loading) {
-      // If not logged in, redirect to login
-      if (!user) {
-        router.push('/login?redirect=/payments/history');
-        return;
-      }
-      
-      // Check if user is admin
-      if (!user.email || !ADMIN_EMAILS.includes(user.email)) {
-        router.push('/unauthorized');
-        return;
-      }
-      
-      // If user is admin, fetch payment history
-      fetchPaymentHistory();
-    }
-  }, [user, loading, router]);
-
-  const fetchPaymentHistory = async () => {
+  const fetchPaymentHistory = useCallback(async () => {
     try {
       setIsLoading(true);
       setError(null); // Clear any previous errors
@@ -115,20 +84,35 @@ export default function PaymentHistory() {
         console.log(`Successfully loaded ${data.charges.length} charges`);
         setPayments(data.charges || []);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error fetching payment history:', error);
-      setError(error.message || 'Failed to load payment history');
+      setError(error instanceof Error ? error.message : 'Failed to load payment history');
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [user]);
+  
+  useEffect(() => {
+    if (!loading) {
+      // If not logged in, redirect to login
+      if (!user) {
+        router.push('/login?redirect=/payments/history');
+        return;
+      }
+      
+      // Check if user is admin
+      if (!user.email || !ADMIN_EMAILS.includes(user.email)) {
+        router.push('/unauthorized');
+        return;
+      }
+      
+      // If user is admin, fetch payment history
+      fetchPaymentHistory();
+    }
+  }, [user, loading, router, fetchPaymentHistory]);
 
   const formatDate = (timestamp: number) => {
     return new Date(timestamp * 1000).toLocaleDateString();
-  };
-
-  const getISODate = (timestamp: number) => {
-    return new Date(timestamp * 1000).toISOString().split('T')[0];
   };
 
   const convertToEUR = (charge: Charge) => {
@@ -237,7 +221,7 @@ export default function PaymentHistory() {
       setIsSyncing(true);
       
       // Get Firebase token for auth
-      const token = await user.getIdToken();
+      const token = await user?.getIdToken();
       
       const response = await fetch('/api/admin/sync-payments', {
         method: 'POST',
@@ -250,7 +234,7 @@ export default function PaymentHistory() {
         throw new Error('Failed to sync payments');
       }
       
-      const data = await response.json();
+      await response.json();
       setLastSyncTime(new Date().toLocaleString());
       
       // Refetch payment history

@@ -7,7 +7,7 @@ export interface Payment {
   paymentIntentId: string;
   paymentMethod: string;
   createdAt: Date;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface Product {

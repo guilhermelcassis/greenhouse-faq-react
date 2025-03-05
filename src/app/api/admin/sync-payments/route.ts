@@ -1,22 +1,45 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth-options';
 import { auth } from '@/lib/firebase-admin';
 import Stripe from 'stripe';
 import { db } from '@/lib/firebase';
 import { collection, doc, setDoc, deleteDoc, getDocs } from 'firebase/firestore';
 
 // Same admin emails
-const ADMIN_EMAILS = [
-  'guilhermelcassis@gmail.com',
-  // Add other admin emails here
-];
+const ADMIN_EMAILS = process.env.ADMIN_EMAILS ? process.env.ADMIN_EMAILS.split(',') : [];
 
 // Collection name
 const PAYMENTS_COLLECTION = 'payments';
 
 // Currency conversion function
-function convertToEUR(payment: any): number {
+// Define a type for the payment object
+interface Payment {
+  id: string;
+  amount: number;
+  currency: string;
+  balance_transaction?: {
+    exchange_rate?: number;
+  };
+  billing_details?: {
+    email?: string;
+    name?: string;
+    phone?: string;
+  };
+  receipt_email?: string;
+  metadata?: {
+    email?: string;
+  };
+  status: string;
+  created: number;
+  description?: string;
+  customer?: {
+    id?: string;
+    email?: string;
+    name?: string;
+    phone?: string;
+  };
+}
+
+function convertToEUR(payment: Payment): number {
   // Default exchange rates (from major currencies to EUR)
   // In a production app, you would use a real-time exchange rate API
   const exchangeRates: Record<string, number> = {
@@ -65,41 +88,43 @@ function convertToEUR(payment: any): number {
 
 export async function POST(request: NextRequest) {
   try {
-    // Authentication checks (unchanged)
-    const session = await getServerSession(authOptions);
-    let userEmail = session?.user?.email;
-    let token = null;
+    // Get token from request headers first
+    let token: string | null = null;
+    const authHeader = request.headers.get('Authorization');
+    if (authHeader?.startsWith('Bearer ')) {
+      token = authHeader.substring(7);
+    }
 
-    if (!userEmail) {
-      const authHeader = request.headers.get('Authorization');
-      if (authHeader?.startsWith('Bearer ')) {
-        token = authHeader.substring(7);
-        try {
-          const decodedToken = await auth.verifyIdToken(token);
-          userEmail = decodedToken.email;
-        } catch (error) {
-          console.error('Error verifying Firebase token:', error);
-        }
-      }
+    // If no token is provided, return unauthorized
+    if (!token) {
+      return NextResponse.json({ error: 'Unauthorized - No token provided' }, { status: 401 });
+    }
+
+    // Verify the token
+    let userEmail: string;
+    try {
+      const user = await auth.verifyIdToken(token);
+      userEmail = user.email || '';
+    } catch (error) {
+      console.error('Error verifying Firebase token:', error);
+      return NextResponse.json({ error: 'Unauthorized - Invalid token' }, { status: 401 });
     }
 
     // Check if user is admin
     if (!userEmail || !ADMIN_EMAILS.includes(userEmail)) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
 
     // Add this just before the sync logic to verify token validity
-    if (token) {
-      try {
-        // Verify the token and get a fresh one
-        const customToken = await auth.createCustomToken(userEmail);
-        console.log('Created fresh custom token for Firestore operations');
-        
-        // You can use this token if needed for subsequent Firebase operations
-      } catch (tokenError) {
-        console.error('Error creating Firebase token:', tokenError);
-        // Continue anyway, as the user may still have access
-      }
+    try {
+      // Verify the token and get a fresh one
+      const customToken = await auth.createCustomToken(userEmail);
+      console.log('Created custom token for verification:', customToken.substring(0, 10) + '...');
+      
+      // You can use this token if needed for subsequent Firebase operations
+    } catch (tokenError) {
+      console.error('Error creating Firebase token:', tokenError);
+      // Continue anyway, as the user may still have access
     }
 
     // Initialize Stripe
@@ -140,7 +165,8 @@ export async function POST(request: NextRequest) {
     }
     
     // Function to process and store payments by batch
-    const processPayments = async (payments: any[], type: string) => {
+    type PaymentType = Stripe.Charge | Stripe.PaymentIntent;
+    const processPayments = async (payments: PaymentType[], type: string) => {
       console.log(`Processing ${payments.length} ${type}...`);
       let count = 0;
       let errors = 0;
@@ -153,16 +179,18 @@ export async function POST(request: NextRequest) {
           if (type === 'charges') {
             // For charges, check multiple sources for email
             const customer = typeof payment.customer === 'object' ? payment.customer : null;
-            email = payment.billing_details?.email || 
-                    (customer?.email) || 
-                    payment.receipt_email || 
+            if ('billing_details' in payment) {
+              email = payment.billing_details?.email || 
+                      (customer && 'email' in customer ? customer.email : '') || 
+                      payment.receipt_email || 
+                      (payment.metadata?.email as string) || 
+                      '';
+            } else {
+              // For PaymentIntents
+              email = payment.receipt_email || 
                     (payment.metadata?.email as string) || 
                     '';
-          } else {
-            // For PaymentIntents
-            email = payment.receipt_email || 
-                   (payment.metadata?.email as string) || 
-                   '';
+            }
           }
           
           if (email) {
@@ -170,7 +198,7 @@ export async function POST(request: NextRequest) {
             email = email.toLowerCase();
             
             // Convert amount to EUR
-            const amountInEUR = convertToEUR(payment);
+            const amountInEUR = convertToEUR(payment as Payment);
             
             // Store in Firestore with the original ID to avoid duplicates
             const paymentDoc = {
@@ -191,16 +219,33 @@ export async function POST(request: NextRequest) {
             if (type === 'charges') {
               const customer = typeof payment.customer === 'object' ? payment.customer : null;
               
-              // @ts-ignore - Add these fields only for charges
+              // @ts-expect-error - Add these fields only for charges
               paymentDoc.customer_id = customer?.id || null;
-              // @ts-ignore
-              paymentDoc.billing_details = {
-                email: payment.billing_details?.email || (customer?.email || ''),
-                name: payment.billing_details?.name || (customer?.name || ''),
-                phone: payment.billing_details?.phone || (customer?.phone || '')
+
+              // Create a helper function to safely access billing details
+              const getBillingDetails = () => {
+                // Check if billing_details exists on the payment object
+                if ('billing_details' in payment && payment.billing_details) {
+                  return {
+                    email: payment.billing_details.email || (customer && 'email' in customer ? customer.email : ''),
+                    name: payment.billing_details.name || (customer && 'name' in customer ? customer.name : ''),
+                    phone: payment.billing_details.phone || (customer && 'phone' in customer ? customer.phone : '')
+                  };
+                }
+                
+                // Fallback when billing_details is not present
+                return {
+                  email: (customer && 'email' in customer ? customer.email : ''),
+                  name: (customer && 'name' in customer ? customer.name : ''),
+                  phone: (customer && 'phone' in customer ? customer.phone : '')
+                };
               };
-              // @ts-ignore
-              paymentDoc.receipt_url = payment.receipt_url || '';
+
+              // @ts-expect-error - Add these fields only for charges
+              paymentDoc.billing_details = getBillingDetails();
+
+              // @ts-expect-error - Add these fields only for charges
+              paymentDoc.receipt_url = 'receipt_url' in payment ? payment.receipt_url || '' : '';
             }
             
             try {
@@ -293,21 +338,27 @@ export async function POST(request: NextRequest) {
     
     console.log(`Sync complete! Stored ${chargeCount} charges and ${intentCount} payment intents in Firestore.`);
     
-    return NextResponse.json({
-      success: true,
-      message: `Successfully synced ${chargeCount + intentCount} payments to Firestore`,
-      counts: {
-        charges: chargeCount,
-        paymentIntents: intentCount,
-        total: chargeCount + intentCount
+    // Make sure updateDoc is imported
+    const { updateDoc } = await import('firebase/firestore');
+    
+    await updateDoc(doc(db, 'system', 'syncStatus'), {
+      status: {
+        success: true,
+        message: `Successfully synced ${chargeCount + intentCount} payments.`
       },
       lastSyncTime: Date.now()
     });
-  } catch (error: any) {
-    console.error('Error syncing payments to Firestore:', error);
+    
+    return NextResponse.json({ success: true, counts: { charges: chargeCount, intents: intentCount }});
+  } catch (error: unknown) {
+    const typedError = error as Error & { message?: string };
+    console.error('Error syncing payments to Firestore:', typedError);
     return NextResponse.json(
-      { error: 'Failed to sync payments', details: error.message },
+      {
+        error: 'An error occurred while syncing payments to Firestore',
+        details: typedError.message
+      },
       { status: 500 }
     );
   }
-} 
+}

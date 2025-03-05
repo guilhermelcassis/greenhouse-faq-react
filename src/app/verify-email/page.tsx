@@ -1,15 +1,17 @@
 "use client";
 
-import { useState, useEffect } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Mail, RefreshCw, CheckCircle } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 import Link from 'next/link';
+import { sendEmailVerification } from 'firebase/auth';
 
-export default function VerifyEmailPage() {
+// Create a wrapper component that uses search params
+function VerifyEmailContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { currentUser, sendEmailVerification, loading } = useAuth();
+  const { user, loading } = useAuth();
   const [emailSent, setEmailSent] = useState(false);
   const [resendDisabled, setResendDisabled] = useState(false);
   const [countdown, setCountdown] = useState(60);
@@ -19,16 +21,16 @@ export default function VerifyEmailPage() {
   
   // Check if email is verified on load and when currentUser changes
   useEffect(() => {
-    if (currentUser?.emailVerified) {
+    if (user?.emailVerified) {
       router.push('/profile');
     }
     
     // Set up a timer to check verification status periodically
     const checkVerificationStatus = async () => {
-      if (currentUser) {
+      if (user) {
         // Force refresh the token to get the latest email verification status
-        await currentUser.reload();
-        if (currentUser.emailVerified) {
+        await user.reload();
+        if (user.emailVerified) {
           router.push('/profile');
         }
       }
@@ -36,7 +38,7 @@ export default function VerifyEmailPage() {
     
     const interval = setInterval(checkVerificationStatus, 5000);
     return () => clearInterval(interval);
-  }, [currentUser, router]);
+  }, [user, router]);
   
   // Handle countdown for resend button
   useEffect(() => {
@@ -52,11 +54,14 @@ export default function VerifyEmailPage() {
   const handleResendVerification = async () => {
     try {
       setError(null);
-      await sendEmailVerification();
-      setEmailSent(true);
-      setResendDisabled(true);
-    } catch (error: any) {
-      setError(error.message || 'Failed to resend verification email');
+      if (user) {
+        await sendEmailVerification(user);
+        setEmailSent(true);
+        setResendDisabled(true);
+      }
+    } catch (error: unknown) {
+      const typedError = error as Error & { message?: string };
+      setError(typedError.message || 'Failed to resend verification email');
     }
   };
   
@@ -82,7 +87,7 @@ export default function VerifyEmailPage() {
               </div>
               <h2 className="text-2xl font-bold text-gradient-green mb-2">Check Your Inbox</h2>
               <p className="text-gray-600">
-                We've sent a verification email to:
+                {"We've sent a verification email to:"}
               </p>
               <p className="font-medium text-gray-800 mt-1">{email}</p>
               
@@ -133,5 +138,16 @@ export default function VerifyEmailPage() {
         </div>
       </section>
     </div>
+  );
+}
+
+// Main component with Suspense boundary
+export default function VerifyEmailPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">
+      <div className="animate-pulse">Loading verification page...</div>
+    </div>}>
+      <VerifyEmailContent />
+    </Suspense>
   );
 } 

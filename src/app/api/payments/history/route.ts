@@ -2,11 +2,8 @@ import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { auth } from '@/lib/firebase-admin';
 
-// Same admin emails as in other files
-const ADMIN_EMAILS = [
-  'guilhermelcassis@gmail.com',
-  // Add other admin emails here
-];
+// Same admin emails
+const ADMIN_EMAILS = process.env.ADMIN_EMAILS ? process.env.ADMIN_EMAILS.split(',') : [];
 
 export async function GET(request: Request) {
   try {
@@ -115,9 +112,9 @@ export async function GET(request: Request) {
         created: charge.created,
         description: charge.description,
         billing_details: {
-          email: charge.billing_details?.email || (customer?.email || ''),
-          name: charge.billing_details?.name || (customer?.name || ''),
-          phone: charge.billing_details?.phone || (customer?.phone || '')
+          email: charge.billing_details?.email || (customer && 'email' in customer ? customer.email : ''),
+          name: charge.billing_details?.name || (customer && 'name' in customer ? customer.name : ''),
+          phone: charge.billing_details?.phone || (customer && 'phone' in customer ? customer.phone : '')
         },
         payment_method_details: charge.payment_method_details,
         receipt_url: charge.receipt_url || '',
@@ -142,14 +139,23 @@ export async function GET(request: Request) {
       paymentIntents: processedPaymentIntents,
       charges: processedCharges
     });
-  } catch (error: any) {
-    // More detailed error logging
-    console.error('Error fetching payment history:', error.message);
-    if (error.stack) console.error(error.stack);
-    
-    return NextResponse.json({ 
-      error: 'Failed to fetch payment history',
-      details: error.message 
-    }, { status: 500 });
-  }
-} 
+    } catch (error: unknown) { // Change 'any' to 'unknown'
+      // More detailed error logging
+      if (error instanceof Error) { // Check if error is an instance of Error
+        console.error('Error fetching payment history:', error.message);
+        if (error.stack) console.error(error.stack);
+        
+        return NextResponse.json({ 
+          error: 'Failed to fetch payment history',
+          details: error.message 
+        }, { status: 500 });
+      } else {
+        // Handle unexpected error types
+        console.error('Unexpected error:', error);
+        return NextResponse.json({ 
+          error: 'Failed to fetch payment history',
+          details: 'An unexpected error occurred' 
+        }, { status: 500 });
+      }
+    }
+}

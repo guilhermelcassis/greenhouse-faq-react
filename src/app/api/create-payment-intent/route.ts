@@ -16,8 +16,9 @@ export async function POST(req: Request) {
     // Verify the session cookie
     let decodedClaims;
     try {
-      decodedClaims = await auth().verifySessionCookie(sessionCookie);
+      decodedClaims = await auth.verifySessionCookie(sessionCookie); // Use auth directly
     } catch (error) {
+      console.error('Error verifying session cookie:', error);
       return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
     }
     
@@ -32,7 +33,7 @@ export async function POST(req: Request) {
     }
     
     // Create a PaymentIntent with the order amount and currency
-    const paymentIntent = await stripe.paymentIntents.create({
+    const paymentIntent = await stripe?.paymentIntents.create({
       amount: Math.round(amount * 100), // Convert to cents
       currency,
       metadata: {
@@ -42,7 +43,7 @@ export async function POST(req: Request) {
     });
     
     return NextResponse.json({ 
-      clientSecret: paymentIntent.client_secret 
+      clientSecret: paymentIntent?.client_secret 
     });
     
   } catch (error) {

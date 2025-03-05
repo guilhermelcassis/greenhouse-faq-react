@@ -1,5 +1,5 @@
 import { db } from './firebase';
-import { collection, doc, addDoc, getDocs, query, where, deleteDoc, updateDoc } from 'firebase/firestore';
+import { collection, addDoc, getDocs, query, where, deleteDoc } from 'firebase/firestore';
 import Stripe from 'stripe';
 
 // Payment interface (same as in payment-store.ts)
@@ -17,9 +17,10 @@ interface Payment {
     name?: string;
     phone?: string;
   };
-  receipt_url?: string;
+  receipt_url?: string | null;
   last_synced: number;
-}
+  stripe_id?: string; // Added stripe_id property
+} 
 
 // Collection reference
 const paymentsCollection = 'payments';

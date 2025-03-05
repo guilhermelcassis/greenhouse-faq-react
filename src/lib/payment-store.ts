@@ -47,6 +47,7 @@ async function initStore() {
     paymentStore = JSON.parse(data);
     console.log(`Payment store loaded with ${paymentStore.payments.length} payments`);
   } catch (error) {
+    console.error('Error loading payment store:', error);
     console.log('No payment store found or error loading, starting fresh');
     paymentStore = { payments: [], lastSyncTime: 0, emailIndex: {} };
   }
@@ -212,11 +213,11 @@ export async function syncAllPayments(): Promise<{ count: number, timestamp: num
           email: email,
           description: charge.description,
           billing_details: {
-            email: charge.billing_details?.email,
+            email: charge.billing_details?.email || undefined, // Ensure email is undefined if null
             name: charge.billing_details?.name as string,
             phone: charge.billing_details?.phone as string
           },
-          receipt_url: charge.receipt_url,
+          receipt_url: charge.receipt_url || undefined,
           last_synced: Date.now()
         };
       }

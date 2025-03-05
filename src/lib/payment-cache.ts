@@ -38,6 +38,7 @@ async function initCache() {
     paymentCache = JSON.parse(data);
     console.log('Payment cache loaded from disk');
   } catch (error) {
+    console.error('Error loading payment cache:', error);
     console.log('No payment cache found or error loading, starting fresh');
     paymentCache = {};
   }

@@ -2,7 +2,6 @@
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { 
-  User, 
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword,
   signOut as firebaseSignOut,
@@ -17,7 +16,7 @@ import {
 } from 'firebase/auth';
 import { auth } from './firebase';
 import { useRouter } from 'next/navigation';
-import { setCookie, deleteCookie } from 'cookies-next';
+import { deleteCookie } from 'cookies-next';
 import { User as FirebaseUser } from 'firebase/auth';
 
 // Extend the Firebase User type
@@ -64,7 +63,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
           
           // Check if user is admin
-          const adminEmails = ['guilhermelcassis@gmail.com', 'youradmin@email.com'];
+          // Same admin emails
+          const adminEmails = process.env.ADMIN_EMAILS ? process.env.ADMIN_EMAILS.split(',') : [];
           const isAdmin = adminEmails.includes(firebaseUser.email || '');
           
           // Instead of creating a new object, add the isAdmin property directly
@@ -111,8 +111,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setError(null);
     try {
       await signInWithEmailAndPassword(auth, email, password);
-    } catch (error: any) {
-      setError(error.message);
+    } catch (error: unknown) {
+      const typedError = error as Error & { message?: string };
+      setError(typedError.message || 'Authentication failed');
       throw error;
     }
   };
@@ -129,8 +130,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
         await firebaseSendEmailVerification(userCredential.user);
       }
-    } catch (error: any) {
-      setError(error.message);
+    } catch (error: unknown) {
+      const typedError = error as Error & { message?: string };
+      setError(typedError.message || 'Registration failed');
       throw error;
     }
   };
@@ -140,8 +142,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       await firebaseSignOut(auth);
       deleteCookie('firebaseAuth');
-    } catch (error: any) {
-      setError(error.message);
+    } catch (error: unknown) {
+      const typedError = error as Error & { message?: string };
+      setError(typedError.message || 'Sign out failed');
       throw error;
     }
   };
@@ -150,8 +153,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setError(null);
     try {
       await sendPasswordResetEmail(auth, email);
-    } catch (error: any) {
-      setError(error.message);
+    } catch (error: unknown) {
+      const typedError = error as Error & { message?: string };
+      setError(typedError.message || 'Password reset failed');
       throw error;
     }
   };
@@ -161,8 +165,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const provider = new GoogleAuthProvider();
       await signInWithPopup(auth, provider);
-    } catch (error: any) {
-      setError(error.message);
+    } catch (error: unknown) {
+      const typedError = error as Error & { message?: string };
+      setError(typedError.message || 'Google sign in failed');
       throw error;
     }
   };

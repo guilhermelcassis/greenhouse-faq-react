@@ -1,5 +1,3 @@
-import { StaticImageData } from 'next/image';
-
 // Define the interface for image data
 export interface ImageData {
   src: string;

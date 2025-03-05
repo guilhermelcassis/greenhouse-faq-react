@@ -37,8 +37,8 @@ export async function GET(req: NextRequest) {
         if (!intent.customer) return null;
         
         try {
-          const customer = await stripe.customers.retrieve(intent.customer.toString());
-          if ('email' in customer && customer.email === userEmail) {
+          const customer = await stripe?.customers.retrieve(intent.customer.toString());
+          if (customer && 'email' in customer && customer.email === userEmail) {
             return {
               id: intent.id,
               amount: intent.amount / 100, // Convert from cents to dollars/etc

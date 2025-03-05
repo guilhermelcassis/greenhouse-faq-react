@@ -1,14 +1,15 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth';
 import { User, Mail, Lock, AlertCircle, ArrowRight } from 'lucide-react';
 
-export default function LoginPage() {
-  const router = useRouter();
+// Create a wrapper component that uses search params
+function LoginContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const { signIn, signInWithGoogle, loading, error } = useAuth();
   
   const [email, setEmail] = useState('');
@@ -26,8 +27,12 @@ export default function LoginPage() {
     try {
       await signIn(email, password);
       router.push(redirect);
-    } catch (error: any) {
-      setFormError(error.message || 'Failed to sign in');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        setFormError(error.message);
+      } else {
+        setFormError('An unknown error occurred');
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -40,8 +45,12 @@ export default function LoginPage() {
     try {
       await signInWithGoogle();
       router.push(redirect);
-    } catch (error: any) {
-      setFormError(error.message || 'Failed to sign in with Google');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        setFormError(error.message);
+      } else {
+        setFormError('An unknown error occurred');
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -180,12 +189,12 @@ export default function LoginPage() {
             
             <div className="mt-8 pt-4 border-t border-gray-100 text-center">
               <p className="text-gray-600">
-                Don't have an account yet?{' '}
+                {"Don't have an account yet?"}{' '}
                 <Link 
                   href={`/register?redirect=${encodeURIComponent(redirect)}`} 
                   className="text-primary font-medium hover:text-primary/70 transition-colors"
                 >
-                  Create an account
+                  {"Create an account"}
                 </Link>
               </p>
             </div>
@@ -193,5 +202,16 @@ export default function LoginPage() {
         </div>
       </section>
     </div>
+  );
+}
+
+// Main component with Suspense boundary
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">
+      <div className="animate-pulse">Loading login...</div>
+    </div>}>
+      <LoginContent />
+    </Suspense>
   );
 } 

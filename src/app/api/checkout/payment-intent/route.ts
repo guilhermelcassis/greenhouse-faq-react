@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
     
     if (!token) {
       // Fallback to cookie
-      const cookieStore = cookies();
+      const cookieStore = await cookies();
       const idToken = cookieStore.get('firebaseIdToken')?.value;
       
       if (!idToken) {

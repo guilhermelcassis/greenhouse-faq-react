@@ -38,7 +38,7 @@ export default function DonatePage() {
             Be part of the revival of Europe
           </h1>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-          "Also I heard the voice of the Lord, saying, Whom shall I send, and who will go for us? Then said I, Here am I; send me." (Isaiah 6:8)
+          &quot;Also I heard the voice of the Lord, saying, Whom shall I send, and who will go for us? Then said I, Here am I; send me.&quot; (Isaiah 6:8)
           </p>
         </div>
       </section>

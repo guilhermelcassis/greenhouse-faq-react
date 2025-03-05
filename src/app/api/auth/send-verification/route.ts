@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createCustomToken } from 'firebase-admin/auth';
-import { adminAuth } from '@/lib/firebase-admin';
+import { getAuth } from 'firebase-admin/auth';
 import nodemailer from 'nodemailer';
 
 export async function POST(request: Request) {
@@ -8,7 +7,7 @@ export async function POST(request: Request) {
     const { userId, email, name } = await request.json();
     
     // Create a verification token
-    const customToken = await createCustomToken(userId);
+    const customToken = await getAuth().createCustomToken(userId);
     const verificationLink = `${process.env.NEXT_PUBLIC_SITE_URL}/verify-email/confirm?token=${customToken}`;
     
     // Setup email transporter (configure with your email provider)

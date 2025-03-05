@@ -1,7 +1,6 @@
 "use client";
 
-import React from 'react';
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import StripeProvider from '@/components/StripeProvider';
 import PaymentForm from '@/components/PaymentForm';
@@ -9,17 +8,17 @@ import { useAuth } from '@/lib/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Product } from '@/types/payment';
-import { ErrorBoundary } from 'react-error-boundary';
+import Image from 'next/image';
 
-export default function CheckoutPage() {
-  const router = useRouter();
+// Create a wrapper component that uses search params
+function CheckoutContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const { user, loading } = useAuth();
   
   const [product, setProduct] = useState<Product | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [stripeError, setStripeError] = useState<boolean>(false);
   
   const productId = searchParams.get('productId');
   
@@ -99,7 +98,7 @@ export default function CheckoutPage() {
             
             <div className="flex items-center space-x-4 mb-4">
               {product.images && product.images.length > 0 && (
-                <img 
+                <Image 
                   src={product.images[0]} 
                   alt={product.name} 
                   className="w-20 h-20 object-cover rounded-md"
@@ -130,10 +129,10 @@ export default function CheckoutPage() {
               <div className="bg-red-50 border border-red-200 p-6 rounded-lg">
                 <h3 className="text-lg font-medium text-red-800 mb-2">Payment System Unavailable</h3>
                 <p className="text-red-700 mb-4">
-                  We're experiencing issues with our payment system. This might be due to missing configuration.
+                {"We're experiencing issues with our payment system. This might be due to missing configuration."}
                 </p>
                 <p className="text-sm text-red-600">
-                  Please ensure that the Stripe API key is properly configured in your environment variables.
+                {"Please ensure that the Stripe API key is properly configured in your environment variables."}
                 </p>
                 <button 
                   onClick={() => router.push('/')}
@@ -160,6 +159,17 @@ export default function CheckoutPage() {
   );
 }
 
+// Main component with Suspense boundary
+export default function CheckoutPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">
+      <div className="animate-pulse">Loading checkout...</div>
+    </div>}>
+      <CheckoutContent />
+    </Suspense>
+  );
+}
+
 // Simple error boundary component
 class CustomErrorBoundary extends React.Component<{
   children: React.ReactNode;
@@ -171,7 +181,7 @@ class CustomErrorBoundary extends React.Component<{
     return { hasError: true };
   }
   
-  componentDidCatch(error: any, errorInfo: any) {
+  componentDidCatch(error: unknown, errorInfo: unknown) {
     console.error("Payment system error:", error, errorInfo);
   }
   

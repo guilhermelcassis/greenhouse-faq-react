@@ -25,8 +25,12 @@ export default function ForgotPasswordPage() {
     try {
       await resetPassword(email);
       setSuccess(true);
-    } catch (error: any) {
-      setFormError(error.message || 'Failed to send reset email');
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        setFormError(error.message);
+      } else {
+        setFormError('An unknown error occurred');
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -38,7 +42,7 @@ export default function ForgotPasswordPage() {
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl font-bold">Reset password</CardTitle>
           <CardDescription>
-            Enter your email address and we'll send you a link to reset your password
+            {"Enter your email address and we'll send you a link to reset your password"}
           </CardDescription>
         </CardHeader>
         

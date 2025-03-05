@@ -5,8 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { useAuth } from '@/lib/auth';
-import { Menu, X, User, LogOut, LogIn, ShoppingCart } from 'lucide-react';
-import { ExtendedUser } from '@/lib/auth';
+import { Menu, X, User, LogOut, LogIn } from 'lucide-react';
 
 export default function Navbar() {
   const { user, loading, signOut } = useAuth();

@@ -1,19 +1,25 @@
 "use client";
 
-import { useState, useEffect } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useState, useEffect, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { CheckCircle, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth';
 import { auth } from '@/lib/firebase';
 import { applyActionCode } from 'firebase/auth';
 
-export default function VerificationConfirmPage() {
-  const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
-  const [message, setMessage] = useState('');
-  const router = useRouter();
+// Create a wrapper component that uses search params
+function VerifyEmailConfirmContent() {
   const searchParams = useSearchParams();
   const { user } = useAuth();
+  
+  const [verifying, setVerifying] = useState(true);
+  const [success, setSuccess] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  
+  // Get the verification parameters from the URL
+  const oobCode = searchParams.get('oobCode');
+  const mode = searchParams.get('mode');
   
   useEffect(() => {
     const verifyEmail = async () => {
@@ -21,20 +27,16 @@ export default function VerificationConfirmPage() {
         // First check if the current user is already verified
         if (user && user.emailVerified) {
           // The user is already verified, no need to process the code again
-          setStatus('success');
-          setMessage('Your email has been verified successfully!');
+          setSuccess(true);
+          setError('Your email has been verified successfully!');
           return;
         }
-        
-        // Get the action code from the URL
-        const oobCode = searchParams.get('oobCode');
-        const mode = searchParams.get('mode');
         
         // If we're on the confirmation page without a code, but coming from Firebase email verification flow
         if (mode === 'verifyEmail' && !oobCode) {
           // Assume Firebase has already processed the verification
-          setStatus('success');
-          setMessage('Your email has been verified. Please sign in to access your account.');
+          setSuccess(true);
+          setError('Your email has been verified. Please sign in to access your account.');
           return;
         }
         
@@ -42,30 +44,29 @@ export default function VerificationConfirmPage() {
         if (oobCode) {
           try {
             await applyActionCode(auth, oobCode);
-            setStatus('success');
-            setMessage('Your email has been verified successfully!');
+            setSuccess(true);
+            setError('Your email has been verified successfully!');
             
             // If user is logged in, reload their profile
             if (user) {
               await user.reload();
             }
-          } catch (verifyError: any) {
+          } catch (verifyError: unknown) {
             // If verification fails, but it's because the email is already verified
             // (this can happen if Firebase auto-processes the verification)
-            if (verifyError.code === 'auth/invalid-action-code') {
+            if (verifyError instanceof Error && 'code' in verifyError && verifyError.code === 'auth/invalid-action-code') {
               // Check if user is logged in and already verified
               if (user) {
                 await user.reload();
                 if (user.emailVerified) {
-                  setStatus('success');
-                  setMessage('Your email has already been verified. You can now access your account.');
+                  setSuccess(true);
+                  setError('Your email has already been verified. You can now access your account.');
                   return;
                 }
               }
               
               // Otherwise, it's truly an invalid code
-              setStatus('error');
-              setMessage('The verification link has expired or already been used. Please request a new one.');
+              setError('The verification link has expired or already been used. Please request a new one.');
             } else {
               throw verifyError; // Re-throw to be caught by outer catch
             }
@@ -76,29 +77,29 @@ export default function VerificationConfirmPage() {
           if (user) {
             await user.reload();
             if (user.emailVerified) {
-              setStatus('success');
-              setMessage('Your email has been verified successfully!');
+              setSuccess(true);
+              setError('Your email has been verified successfully!');
             } else {
-              setStatus('error');
-              setMessage('Invalid verification link. Please request a new verification email.');
+              setError('Invalid verification link. Please request a new verification email.');
             }
           } else {
             // No user and no code - show a more generic message
-            setStatus('success');
-            setMessage('If your email was verified, you can now sign in with your account.');
+            setSuccess(true);
+            setError('If your email was verified, you can now sign in with your account.');
           }
         }
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error('Verification error:', error);
         
         // Handle specific Firebase errors
-        if (error.code === 'auth/user-not-found') {
-          setMessage('User account not found. Please sign up again.');
+        const typedError = error as Error & { code?: string };
+        if (typedError.code === 'auth/user-not-found') {
+          setError('User account not found. Please sign up again.');
         } else {
-          setMessage(`Verification failed: ${error.message || 'Unknown error'}`);
+          setError(`Verification failed: ${typedError.message || 'Unknown error'}`);
         }
-        
-        setStatus('error');
+      } finally {
+        setVerifying(false);
       }
     };
     
@@ -113,9 +114,9 @@ export default function VerificationConfirmPage() {
             Email Verification
           </h1>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            {status === 'loading' ? 'Processing your verification...' : 
-             status === 'success' ? 'Your account is ready!' : 
-             'Verification issue'}
+            {verifying ? 'Processing your verification...' : 
+             success ? 'Your account is ready!' : 
+             error ? error : 'Verification issue'}
           </p>
         </div>
       </section>
@@ -123,20 +124,20 @@ export default function VerificationConfirmPage() {
       <section className="py-16 px-4 flex justify-center">
         <div className="bg-white rounded-xl shadow-md border-green-subtle card-hover-effect w-full max-w-md overflow-hidden">
           <div className="p-8 space-y-6">
-            {status === 'loading' && (
+            {verifying && (
               <div className="flex flex-col items-center justify-center text-center">
                 <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
                 <p className="mt-4 text-gray-600">Verifying your email address...</p>
               </div>
             )}
             
-            {status === 'success' && (
+            {success && (
               <div className="flex flex-col items-center justify-center text-center">
                 <div className="p-4 bg-green-100 rounded-full text-green-600 mb-4">
                   <CheckCircle size={40} />
                 </div>
                 <h2 className="text-2xl font-bold text-gradient-green mb-2">Email Verified!</h2>
-                <p className="text-gray-600">{message}</p>
+                <p className="text-gray-600">{error}</p>
                 
                 <div className="mt-8 p-4 bg-green-50 rounded-lg w-full">
                   <p className="text-green-800 text-sm">
@@ -157,7 +158,7 @@ export default function VerificationConfirmPage() {
               </div>
             )}
             
-            {status === 'error' && (
+            {error && (
               <div className="flex flex-col items-center justify-center text-center">
                 <div className="p-4 bg-red-100 rounded-full text-red-600 mb-4">
                   <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -167,7 +168,7 @@ export default function VerificationConfirmPage() {
                   </svg>
                 </div>
                 <h2 className="text-2xl font-bold text-red-600 mb-2">Verification Failed</h2>
-                <p className="text-gray-600">{message}</p>
+                <p className="text-gray-600">{error}</p>
                 
                 <div className="mt-8 w-full space-y-4">
                   <Link 
@@ -194,5 +195,16 @@ export default function VerificationConfirmPage() {
         </div>
       </section>
     </div>
+  );
+}
+
+// Main component with Suspense boundary
+export default function VerifyEmailConfirmPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">
+      <div className="animate-pulse">Loading verification...</div>
+    </div>}>
+      <VerifyEmailConfirmContent />
+    </Suspense>
   );
 } 

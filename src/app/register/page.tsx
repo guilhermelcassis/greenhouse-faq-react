@@ -1,30 +1,40 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth';
-import { User, Mail, Lock, AlertCircle, UserPlus, UserCheck } from 'lucide-react';
+import { User, Mail, Lock, AlertCircle, UserPlus } from 'lucide-react';
 
-export default function RegisterPage() {
+// Create a wrapper component that uses search params
+function RegisterContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { signUp, loading } = useAuth();
   
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [formData, setFormData] = useState({
+    email: '',
+    password: '',
+    name: ''
+  });
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   
   const redirect = searchParams.get('redirect') || '/profile';
   
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value
+    });
+  };
+  
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setFormError(null);
     
-    if (password !== confirmPassword) {
+    if (formData.password !== confirmPassword) {
       setFormError('Passwords do not match');
       return;
     }
@@ -32,10 +42,11 @@ export default function RegisterPage() {
     setIsSubmitting(true);
     
     try {
-      await signUp(email, password);
-      router.push('/verify-email?email=' + encodeURIComponent(email));
-    } catch (error: any) {
-      setFormError(error.message || 'Failed to sign up');
+      await signUp(formData.email, formData.password, '');
+      router.push('/verify-email?email=' + encodeURIComponent(formData.email));
+    } catch (error: unknown) {
+      const typedError = error as Error & { message?: string };
+      setFormError(typedError.message || 'Failed to sign up');
     } finally {
       setIsSubmitting(false);
     }
@@ -86,9 +97,11 @@ export default function RegisterPage() {
                   </div>
                   <input
                     id="name"
-                    placeholder="John Doe"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
+                    type="text"
+                    name="name"
+                    value={formData.name}
+                    onChange={handleChange}
+                    placeholder="Full Name"
                     required
                     className="pl-10 pr-4 py-3 w-full border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50"
                   />
@@ -104,9 +117,10 @@ export default function RegisterPage() {
                   <input
                     id="email"
                     type="email"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleChange}
                     placeholder="name@example.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
                     required
                     className="pl-10 pr-4 py-3 w-full border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50"
                   />
@@ -122,8 +136,9 @@ export default function RegisterPage() {
                   <input
                     id="password"
                     type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    name="password"
+                    value={formData.password}
+                    onChange={handleChange}
                     required
                     minLength={6}
                     className="pl-10 pr-4 py-3 w-full border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50"
@@ -177,5 +192,16 @@ export default function RegisterPage() {
         </div>
       </section>
     </div>
+  );
+}
+
+// Main component with Suspense boundary
+export default function RegisterPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">
+      <div className="animate-pulse">Loading registration form...</div>
+    </div>}>
+      <RegisterContent />
+    </Suspense>
   );
 } 

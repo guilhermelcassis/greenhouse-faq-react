@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
 import { formatDistanceToNow } from 'date-fns';
@@ -26,20 +26,7 @@ export default function ProfilePage() {
   const [isLoading, setIsLoading] = useState(true);
   const [totalSpent, setTotalSpent] = useState<number>(0);
   
-  useEffect(() => {
-    // Redirect if not logged in (using Firebase only)
-    if (!loading && !user) {
-      router.push('/login?redirect=/profile');
-      return;
-    }
-    
-    // If user is authenticated, fetch payments
-    if (user) {
-      fetchStripePayments();
-    }
-  }, [user, loading, router]);
-  
-  const fetchStripePayments = async () => {
+  const fetchStripePayments = useCallback(async () => {
     try {
       setIsLoading(true);
       
@@ -107,7 +94,20 @@ export default function ProfilePage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [user]);
+  
+  useEffect(() => {
+    // Redirect if not logged in (using Firebase only)
+    if (!loading && !user) {
+      router.push('/login?redirect=/profile');
+      return;
+    }
+    
+    // If user is authenticated, fetch payments
+    if (user) {
+      fetchStripePayments();
+    }
+  }, [user, loading, router, fetchStripePayments]);
   
   const handleSignOut = async () => {
     try {
@@ -213,7 +213,7 @@ export default function ProfilePage() {
             <div className="mb-4 text-primary opacity-50">
               <CreditCard size={48} className="mx-auto" />
             </div>
-            <p className="text-lg text-gray-500">You haven't made any payments yet.</p>
+            <p className="text-lg text-gray-500">{"You haven't made any payments yet."}</p>
           </div>
         ) : (
           <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent">
