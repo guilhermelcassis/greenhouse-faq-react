@@ -10,7 +10,10 @@ import {
   sendPasswordResetEmail,
   updateProfile,
   GoogleAuthProvider,
-  signInWithPopup
+  signInWithPopup,
+  sendEmailVerification as firebaseSendEmailVerification,
+  setPersistence,
+  browserLocalPersistence
 } from 'firebase/auth';
 import { auth } from './firebase';
 import { useRouter } from 'next/navigation';
@@ -31,6 +34,7 @@ interface AuthContextType {
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
+  sendEmailVerification: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -39,11 +43,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<ExtendedUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
 
   useEffect(() => {
+    // Set persistence to LOCAL for better session handling
+    setPersistence(auth, browserLocalPersistence)
+      .then(() => {
+        console.log("Auth persistence set to LOCAL");
+      })
+      .catch((error) => {
+        console.error("Error setting persistence:", error);
+      });
+
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         try {
+          // If user is logged in but you're in the login page, redirect to profile
+          if (window.location.pathname === '/login') {
+            router.push('/profile');
+          }
+          
           // Check if user is admin
           const adminEmails = ['guilhermelcassis@gmail.com', 'youradmin@email.com'];
           const isAdmin = adminEmails.includes(firebaseUser.email || '');
@@ -51,6 +70,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // Instead of creating a new object, add the isAdmin property directly
           // This preserves all the original methods
           (firebaseUser as ExtendedUser).isAdmin = isAdmin;
+          
+          // Force refresh to get the latest verification status
+          await firebaseUser.reload();
           
           setUser(firebaseUser as ExtendedUser);
           
@@ -74,13 +96,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       } else {
         setUser(null);
-        deleteCookie('firebaseAuth');
+        // If on a protected route, redirect to login
+        if (window.location.pathname.startsWith('/profile')) {
+          router.push('/login');
+        }
       }
       setLoading(false);
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [router]);
 
   const signIn = async (email: string, password: string) => {
     setError(null);
@@ -102,6 +127,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await updateProfile(userCredential.user, {
           displayName: name
         });
+        await firebaseSendEmailVerification(userCredential.user);
       }
     } catch (error: any) {
       setError(error.message);
@@ -141,6 +167,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const sendEmailVerification = async () => {
+    if (user) {
+      await firebaseSendEmailVerification(user);
+    } else {
+      throw new Error('No user is currently signed in');
+    }
+  };
+
   return (
     <AuthContext.Provider value={{
       user,
@@ -150,7 +184,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signUp,
       signOut,
       resetPassword,
-      signInWithGoogle
+      signInWithGoogle,
+      sendEmailVerification
     }}>
       {children}
     </AuthContext.Provider>

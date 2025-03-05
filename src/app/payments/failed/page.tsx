@@ -117,7 +117,7 @@ export default function PaymentHistory() {
       }
     } catch (error) {
       console.error('Error fetching payment history:', error);
-      setError(error.message || 'Failed to load payment history');
+      setError(error instanceof Error ? error.message : 'Failed to load payment history');
     } finally {
       setIsLoading(false);
     }
@@ -223,13 +223,10 @@ export default function PaymentHistory() {
   }, [searchTerm, startDate, endDate, statusFilter]);
 
   // Calculate totals for filtered payments
-  const totalSuccessful = filteredPayments
-    .filter(charge => charge.status === 'succeeded')
+  const totalFailed = filteredPayments
+    .filter(charge => charge.status === 'failed')
     .reduce((sum, charge) => sum + convertToEUR(charge), 0);
     
-  const totalPending = filteredPayments
-    .filter(charge => charge.status === 'pending')
-    .reduce((sum, charge) => sum + convertToEUR(charge), 0);
 
   // Add this function
   const syncPayments = async () => {
@@ -237,7 +234,7 @@ export default function PaymentHistory() {
       setIsSyncing(true);
       
       // Get Firebase token for auth
-      const token = await user.getIdToken();
+      const token = await user?.getIdToken();
       
       const response = await fetch('/api/admin/sync-payments', {
         method: 'POST',
@@ -282,21 +279,21 @@ export default function PaymentHistory() {
         <section className="relative h-[30vh] flex items-center justify-center bg-green-gradient-radial">
           <div className="relative text-center space-y-6 px-4 max-w-4xl mx-auto animate-fade-in">
             <h1 className="text-5xl md:text-6xl font-bold tracking-tight text-gradient-green">
-              Payment History
+              Failed Payments
             </h1>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              View and manage all payment transactions in one place
+              View and manage all failed payment transactions in one place
             </p>
           </div>
         </section>
         
         <div className="max-w-4xl mx-auto mt-8 px-4">
-          <div className="bg-white rounded-xl shadow-md border-red-200 p-6 flex items-center">
-            <div className="bg-red-100 p-3 rounded-full text-red-600 mr-4">
+          <div className="bg-white rounded-xl shadow-md border-green-200 p-6 flex items-center">
+            <div className="bg-green-100 p-3 rounded-full text-green-600 mr-4">
               <AlertTriangle size={24} />
             </div>
             <div>
-              <h3 className="text-lg font-bold text-red-600 mb-1">Error</h3>
+              <h3 className="text-lg font-bold text-green-600 mb-1">Error</h3>
               <p className="text-gray-700">{error}</p>
             </div>
           </div>
@@ -311,43 +308,15 @@ export default function PaymentHistory() {
       <section className="relative h-[30vh] flex items-center justify-center bg-green-gradient-radial">
         <div className="relative text-center space-y-6 px-4 max-w-4xl mx-auto animate-fade-in">
           <h1 className="text-5xl md:text-6xl font-bold tracking-tight text-gradient-green">
-            Payment History
+            Failed Payments
           </h1>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            View and manage all payment transactions in one place
+            View and manage all failed payment transactions in one place
           </p>
         </div>
       </section>
 
       <div className="container mx-auto px-4 py-12">
-        {/* Sync button */}
-        <div className="flex justify-end mb-8">
-          <div className="flex items-center bg-white rounded-xl shadow-sm border border-green-subtle p-2">
-            {lastSyncTime && (
-              <span className="text-sm text-gray-500 mr-3 pl-2">
-                Last synced: {lastSyncTime}
-              </span>
-            )}
-            <button
-              onClick={syncPayments}
-              disabled={isSyncing}
-              className="flex items-center px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 
-                        transition-colors shadow-sm disabled:bg-gray-400"
-            >
-              {isSyncing ? (
-                <>
-                  <RefreshCw className="animate-spin h-4 w-4 mr-2" />
-                  Syncing...
-                </>
-              ) : (
-                <>
-                  <RefreshCw className="h-4 w-4 mr-2" />
-                  Sync Payments
-                </>
-              )}
-            </button>
-          </div>
-        </div>
         
         {/* Filters */}
         <div className="bg-white p-6 rounded-xl shadow-md border-green-subtle card-hover-effect mb-8">
@@ -400,112 +369,33 @@ export default function PaymentHistory() {
                     onChange={(e) => setEndDate(e.target.value)}
                   />
                 </div>
-              </div>
-            </div>
-            
-            {/* Status filter */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Filter className="h-5 w-5 text-gray-400" />
-                </div>
-                <select
-                  className="pl-10 pr-4 py-3 border border-gray-300 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 appearance-none"
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
+                    <button
+                  onClick={() => {
+                    setSearchTerm('');
+                    setStartDate('');
+                    setEndDate('');
+                    setStatusFilter('all');
+                    setCurrentPage(1);
+                  }}
+                  className="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium shadow-sm hover:shadow"
                 >
-                  <option value="all">All Statuses</option>
-                  <option value="succeeded">Succeeded</option>
-                  <option value="pending">Pending</option>
-                  <option value="failed">Failed</option>
-                </select>
+                  Clear Filters
+                </button>
               </div>
             </div>
           </div>
-          
           {/* Second row for items per page and clear filters */}
           <div className="mt-6 flex flex-col sm:flex-row justify-between items-center">
-            <div className="w-full sm:w-48 mb-4 sm:mb-0">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Items per page</label>
-              <select
-                className="py-3 px-4 border border-gray-300 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50"
-                value={itemsPerPage}
-                onChange={(e) => setItemsPerPage(Number(e.target.value))}
-              >
-                <option value={10}>10</option>
-                <option value={25}>25</option>
-                <option value={50}>50</option>
-                <option value={100}>100</option>
-              </select>
-            </div>
             
-            <button
-              onClick={() => {
-                setSearchTerm('');
-                setStartDate('');
-                setEndDate('');
-                setStatusFilter('all');
-                setCurrentPage(1);
-              }}
-              className="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium shadow-sm hover:shadow"
-            >
-              Clear Filters
-            </button>
+
           </div>
         </div>
-        
-        {/* Summary */}
-        <div className="bg-white p-6 rounded-xl shadow-md border-green-subtle card-hover-effect mb-8">
-          <div className="flex items-center mb-4">
-            <DollarSign className="text-primary mr-2" size={20} />
-            <h2 className="text-xl font-bold text-gradient-green">Payment Summary</h2>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-green-50 p-5 rounded-xl border border-green-200 transition-transform hover:scale-[1.02]">
-              <div className="flex items-center mb-2">
-                <CreditCard className="text-green-600 mr-2" size={18} />
-                <span className="font-medium text-green-800">Successful Payments</span>
-              </div>
-              <p className="text-2xl font-bold text-gradient-green">
-                {new Intl.NumberFormat('de-DE', {
-                  style: 'currency',
-                  currency: 'EUR',
-                }).format(totalSuccessful)}
-              </p>
-            </div>
-            <div className="bg-yellow-50 p-5 rounded-xl border border-yellow-200 transition-transform hover:scale-[1.02]">
-              <div className="flex items-center mb-2">
-                <Clock className="text-yellow-600 mr-2" size={18} />
-                <span className="font-medium text-yellow-800">Pending Payments</span>
-              </div>
-              <p className="text-2xl font-bold text-gradient-green">
-                {new Intl.NumberFormat('de-DE', {
-                  style: 'currency',
-                  currency: 'EUR',
-                }).format(totalPending)}
-              </p>
-            </div>
-            <div className="bg-blue-50 p-5 rounded-xl border border-blue-200 transition-transform hover:scale-[1.02]">
-              <div className="flex items-center mb-2">
-                <DollarSign className="text-blue-600 mr-2" size={18} />
-                <span className="font-medium text-blue-800">Total Payments</span>
-              </div>
-              <p className="text-2xl font-bold text-gradient-green">
-                {new Intl.NumberFormat('de-DE', {
-                  style: 'currency',
-                  currency: 'EUR',
-                }).format(totalSuccessful + totalPending)}
-              </p>
-            </div>
-          </div>
-        </div>
-        
+                
         {/* Payments Table */}
         <div className="bg-white rounded-xl shadow-md border-green-subtle card-hover-effect overflow-hidden mb-8">
           <div className="px-6 py-4 border-b border-gray-200 flex items-center">
             <FileText className="text-primary mr-3" size={24} />
-            <h2 className="text-xl font-bold text-gradient-green">Payments</h2>
+              <h2 className="text-xl font-bold text-gradient-green">Payments</h2>
           </div>
           
           {currentItems.length === 0 ? (
@@ -533,7 +423,7 @@ export default function PaymentHistory() {
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {currentItems
-                  .filter(charge => charge.status !== 'failed')
+                  .filter(charge => charge.status === 'failed')
                   .map((charge) => (
                     <tr key={charge.id} className="hover:bg-gray-50 transition-colors">
                       <td className="py-5 px-4 whitespace-nowrap">
@@ -545,9 +435,8 @@ export default function PaymentHistory() {
                       <td className="py-5 px-4 whitespace-nowrap text-sm font-medium text-gray-800">{formatAmount(charge)}</td>
                       <td className="py-5 px-4 whitespace-nowrap">
                         <span className={`px-3 py-1 inline-flex items-center rounded-full text-xs font-medium ${
-                          charge.status === 'succeeded' ? 'bg-green-100 text-green-800' : 
-                          charge.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : 
-                          'bg-red-100 text-red-800'
+                          charge.status === 'failed' ? 'bg-red-100 text-red-800' : 
+                          'bg-green-100 text-green-800'
                         }`}>
                           {charge.status}
                         </span>
