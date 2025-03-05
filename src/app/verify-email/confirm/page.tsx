@@ -116,7 +116,7 @@ function VerifyEmailConfirmContent() {
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
             {verifying ? 'Processing your verification...' : 
              success ? 'Your account is ready!' : 
-             error ? error : 'Verification issue'}
+             'Verification issue'}
           </p>
         </div>
       </section>
@@ -131,7 +131,7 @@ function VerifyEmailConfirmContent() {
               </div>
             )}
             
-            {success && (
+            {!verifying && success && (
               <div className="flex flex-col items-center justify-center text-center">
                 <div className="p-4 bg-green-100 rounded-full text-green-600 mb-4">
                   <CheckCircle size={40} />
@@ -158,7 +158,7 @@ function VerifyEmailConfirmContent() {
               </div>
             )}
             
-            {error && (
+            {!verifying && !success && error && (
               <div className="flex flex-col items-center justify-center text-center">
                 <div className="p-4 bg-red-100 rounded-full text-red-600 mb-4">
                   <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
