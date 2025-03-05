@@ -1,0 +1,21 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Allow users to read and create their own payments
+    match /payments/{paymentId} {
+      allow read: if request.auth != null && request.auth.uid == resource.data.userId;
+      allow create: if false; // Only created via server
+    }
+    
+    // Allow users to read products (public data)
+    match /products/{productId} {
+      allow read: if true;
+      allow write: if false; // Only admins can write
+    }
+    
+    // Admin collection for managing products
+    match /admin/{document=**} {
+      allow read, write: if false; // Only via admin panel or server
+    }
+  }
+} 

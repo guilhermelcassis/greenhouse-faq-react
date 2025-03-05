@@ -3,7 +3,7 @@
 // src/app/greenhouse/page.tsx
 import Link from 'next/link';
 import Image from 'next/image';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { featuredGreenhouseImages, featuredMissionImages } from '@/data/greenhouseImages';
 
 // Image Modal Component
@@ -48,7 +48,7 @@ const testimonials = [
   {
     name: "Eddie Nunes",
     role: "Ministry Leader",
-    text: "The teachings and community at Greenhouse are unparalleled. I highly recommend it!",
+    text: "The teachings and community at Greenhouse are unparallequeed. I highly recommend it!",
     image: "/images/avatar2.jpg"
   },
   {
@@ -61,6 +61,11 @@ const testimonials = [
 
 export default function GreenhousePage() {
   const [selectedImage, setSelectedImage] = useState<{ src: string; alt?: string } | null>(null);
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   const openModal = (image: { src: string; alt?: string }) => {
     setSelectedImage(image);
@@ -74,6 +79,9 @@ export default function GreenhousePage() {
     document.body.style.overflow = 'auto';
   };
 
+  const greenhouseImagesToShow = featuredGreenhouseImages.slice(0, 16);
+  const missionImagesToShow = featuredMissionImages.slice(0, 16);
+
   return (
     <div className="min-h-screen bg-background">
       {/* Modal */}
@@ -83,7 +91,7 @@ export default function GreenhousePage() {
       <section className="relative h-[60vh] flex items-center justify-center bg-green-gradient-radial">
         <div className="relative text-center space-y-6 px-4 max-w-4xl mx-auto animate-fade-in">
           <h1 className="text-5xl md:text-6xl font-bold tracking-tight text-gradient-green">
-            Greenhouse 2025
+            Dunamis Greenhouse 2025
           </h1>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
             A 10-day immersive program focused on spiritual leadership development and supernatural activation
@@ -204,22 +212,24 @@ export default function GreenhousePage() {
               </p>
             </div>
             
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {featuredGreenhouseImages.slice(0, 16).map((image, index) => (
-                <div 
-                  key={index} 
-                  className="relative aspect-square rounded-lg overflow-hidden shadow-md border-green-subtle card-hover-effect cursor-pointer"
-                  onClick={() => openModal(image)}
-                >
-                  <Image
-                    src={image.src}
-                    alt={image.alt || `Greenhouse image ${index + 1}`}
-                    fill
-                    className="object-cover transition-transform hover:scale-105"
-                  />
-                </div>
-              ))}
-            </div>
+            {isClient && (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {greenhouseImagesToShow.map((image, index) => (
+                  <div 
+                    key={index} 
+                    className="relative aspect-square rounded-lg overflow-hidden shadow-md border-green-subtle card-hover-effect cursor-pointer"
+                    onClick={() => openModal(image)}
+                  >
+                    <Image
+                      src={image.src}
+                      alt={image.alt || `Greenhouse image ${index + 1}`}
+                      fill
+                      className="object-cover transition-transform hover:scale-105"
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
           
           {/* Mission Trips Gallery - Now matching the same layout */}
@@ -232,44 +242,58 @@ export default function GreenhousePage() {
               </p>
             </div>
             
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {featuredMissionImages.slice(0, 16).map((image, index) => (
-                <div 
-                  key={index} 
-                  className="relative aspect-square rounded-lg overflow-hidden shadow-md border-green-subtle card-hover-effect cursor-pointer"
-                  onClick={() => openModal(image)}
-                >
-                  <Image
-                    src={image.src}
-                    alt={image.alt || `Mission trip image ${index + 1}`}
-                    fill
-                    className="object-cover transition-transform hover:scale-105"
-                  />
-                </div>
-              ))}
-            </div>
+            {isClient && (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {missionImagesToShow.map((image, index) => (
+                  <div 
+                    key={index} 
+                    className="relative aspect-square rounded-lg overflow-hidden shadow-md border-green-subtle card-hover-effect cursor-pointer"
+                    onClick={() => openModal(image)}
+                  >
+                    <Image
+                      src={image.src}
+                      alt={image.alt || `Mission trip image ${index + 1}`}
+                      fill
+                      className="object-cover transition-transform hover:scale-105"
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </section>
 
-      {/* CTA Section */}
-      <section className="py-16 bg-primary">
-        <div className="max-w-4xl mx-auto px-4 text-center space-y-6">
-          <h2 className="text-3xl font-bold text-white">
-            Ready to Apply?
-          </h2>
-          <p className="text-xl text-white/90">
-            Limited spots available for this life-changing experience
-          </p>
+      {/* Cards Section */}
+      <section className="py-16 bg-green-pattern-light">
+        <div className="max-w-6xl mx-auto px-4 text-center">
+          <h2 className="text-3xl font-bold mb-12 text-gradient-green">Dunamis Greenhouse 2025</h2>
           
-          <Link 
-            href="https://form.respondi.app/hefJH0HK" 
-            target="_blank"
-            className="inline-flex items-center justify-center h-14 px-8 text-lg bg-white text-primary hover:bg-white/90 rounded-md font-medium transition-colors card-hover-effect"
-          >
-            Secure Your Spot
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="ml-2 h-5 w-5"><path d="m9 18 6-6-6-6"/></svg>
-          </Link>
+          <div className="grid md:grid-cols-3 gap-8">
+            {[
+              {
+                title: "Revival",
+                description: "The revival of the Church is the revival of Europe. God is calling for revivalists.",
+                icon: "🔥"
+              },
+              {
+                title: "Reformation",
+                description: "We believe in the power of revival and transformation. Spread the Gospel of Kingdom of God.",
+                icon: "📖"
+              },
+              {
+                title: "Supernatural",
+                description: "The gifts of the Holy Spirit are for today. Let's see them manifested in our generation.",
+                icon: "💥"
+              }
+            ].map((feature, index) => (
+              <div key={index} className="bg-white p-6 rounded-xl shadow-md border-green-subtle card-hover-effect">
+                <div className="text-4xl mb-4 text-primary">{feature.icon}</div>
+                <h3 className="text-xl font-semibold mb-2">{feature.title}</h3>
+                <p className="text-gray-600">{feature.description}</p>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 

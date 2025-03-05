@@ -1,0 +1,83 @@
+{
+    "$schema": "https://cursor.sh/rules-schema.json",
+    "rules": {
+      "general": {
+        "exclude": [
+          "node_modules/**",
+          ".next/**",
+          "out/**",
+          "*.local*"
+        ],
+        "codingStandards": {
+          "preferFunctionalComponents": true,
+          "typescriptPreferred": true,
+          "inlineStyles": "avoid"
+        }
+      },
+      "firebase": {
+        "description": "Enforce Firebase usage for auth and database",
+        "allowPatterns": [
+          "import.*firebase/app",
+          "import.*firebase/auth",
+          "import.*firebase/firestore",
+          "getAuth",
+          "signInWithEmailAndPassword",
+          "createUserWithEmailAndPassword",
+          "signOut",
+          "onAuthStateChanged",
+          "doc.*firestore",
+          "collection.*firestore",
+          "getDoc",
+          "setDoc",
+          "initializeApp"
+        ],
+        "denyPatterns": [
+          "next-auth/react",
+          "next-auth/client",
+          "next-auth/providers",
+          "useSession",
+          "getSession",
+          "signIn.*github",
+          "signIn.*google.*next-auth",
+          "authOptions.*next-auth"
+        ]
+      },
+      "nextjs": {
+        "description": "Next.js specific rules",
+        "allowPatterns": [
+          "use client",
+          "use server",
+          "generateStaticParams",
+          "dynamicParams",
+          "export const dynamic",
+          "metadata exports"
+        ],
+        "denyPatterns": [
+          "getServerSideProps.*auth.*next-auth",
+          "getStaticProps.*auth.*next-auth"
+        ]
+      },
+      "typescript": {
+        "description": "TypeScript specific rules",
+        "requirePatterns": [
+          "interface [A-Z]",
+          "type [A-Z]",
+          ": React.ReactNode",
+          ": React.FC<",
+          "as HTML[A-Za-z]*Element"
+        ]
+      }
+    },
+    "patterns": {
+      "deny": [
+        {
+          "pattern": "next-auth",
+          "message": "This project uses Firebase for authentication. Avoid Next Auth-related imports."
+        },
+        {
+          "pattern": "useSession",
+          "message": "Please use Firebase auth state listeners instead of Next Auth sessions."
+        }
+      ]
+    }
+  }

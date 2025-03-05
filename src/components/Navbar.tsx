@@ -2,12 +2,29 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import Image from 'next/image';
+import { useAuth } from '@/lib/auth';
+import { Menu, X, User, LogOut, LogIn, ShoppingCart } from 'lucide-react';
+import { ExtendedUser } from '@/lib/auth';
 
 export default function Navbar() {
-  const [isOpen, setIsOpen] = useState(false);
+  const { user, loading, signOut } = useAuth();
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const pathname = usePathname();
+  const router = useRouter();
+
+  const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
+  
+  const handleSignIn = () => {
+    router.push('/login');
+    setIsMenuOpen(false);
+  };
+  
+  const handleSignOut = async () => {
+    await signOut();
+    setIsMenuOpen(false);
+  };
 
   return (
     <nav className="w-full bg-white shadow-md fixed top-0 z-50">
@@ -29,23 +46,11 @@ export default function Navbar() {
           {/* Hamburger Menu (Mobile) */}
           <div className="flex md:hidden">
             <button
-              onClick={() => setIsOpen(!isOpen)}
+              onClick={toggleMenu}
               className="text-primary focus:outline-none"
               aria-label="Toggle menu"
             >
-              <svg
-                className="w-6 h-6"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d={isOpen ? "M6 18L18 6M6 6l12 12" : "M4 6h16M4 12h16m-7 6h7"}
-                />
-              </svg>
+              {isMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
             </button>
           </div>
 
@@ -54,6 +59,12 @@ export default function Navbar() {
             <NavLink href="/greenhouse" currentPath={pathname} label="About" />
             <NavLink href="/" currentPath={pathname} label="Ask AI" />
             <NavLink href="/faq" currentPath={pathname} label="FAQ" />
+            {user && (
+              <NavLink href="/donate" currentPath={pathname} label="Payment" />
+            )}
+            {user && user.isAdmin && (
+              <NavLink href="/payments/history" currentPath={pathname} label="Payment History" />
+            )}
             <Link 
               href="https://form.respondi.app/hefJH0HK" 
               target="_blank"
@@ -62,22 +73,107 @@ export default function Navbar() {
               Apply Now
             </Link>
           </div>
+
+          {/* Auth and Cart Buttons - Desktop */}
+          <div className="hidden md:flex items-center space-x-4">
+            
+            {loading ? (
+              <div className="h-8 w-8 rounded-full bg-gray-200 animate-pulse"></div>
+            ) : user ? (
+              <div className="flex items-center space-x-3">
+                <Link 
+                  href="/profile" 
+                  className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 transition-colors flex items-center"
+                >
+                  <User className="h-5 w-5 mr-2" />
+                  {user.displayName?.split(' ')[0] || 'Profile'}
+                </Link>
+                <button 
+                  onClick={handleSignOut} 
+                  className="px-4 py-2 border border-primary text-white rounded-md hover:bg-primary/90 transition-colors flex items-center"
+                >
+                  <LogOut className="h-5 w-5 mr-2" />
+                  Sign out
+                </button>
+              </div>
+            ) : (
+              <>
+                <button 
+                  onClick={handleSignIn} 
+                  className="px-4 py-2 border border-primary text-white rounded-md hover:bg-primary/90 transition-colors flex items-center"
+                >
+                  <LogIn className="h-5 w-5 mr-1" />
+                  Sign in
+                </button>
+                <Link 
+                  href="/register"
+                  className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 transition-colors"
+                >
+                  Sign up
+                </Link>
+              </>
+            )}
+          </div>
         </div>
 
         {/* Mobile Menu (Dropdown) */}
-        {isOpen && (
-          <div className="md:hidden py-4 border-t border-gray-100">
-            <div className="flex flex-col space-y-4">
+        {isMenuOpen && (
+          <div className="sm:hidden">
+            <div className="pt-2 pb-3 space-y-1">
               <NavLink href="/greenhouse" currentPath={pathname} label="About" mobile />
               <NavLink href="/" currentPath={pathname} label="Ask AI" mobile />
               <NavLink href="/faq" currentPath={pathname} label="FAQ" mobile />
+              {user && (
+                <NavLink href="/donate" currentPath={pathname} label="Payment" mobile />
+              )}
+              {user && user.isAdmin && (
+                <NavLink href="/payments/history" currentPath={pathname} label="Payment History" mobile />
+              )}
               <Link 
                 href="https://form.respondi.app/hefJH0HK" 
                 target="_blank"
                 className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 transition-colors inline-block"
               >
                 Apply Now
-              </Link>
+              </Link>              
+              {user ? (
+                <div className="space-y-2 mt-2">
+                  <Link 
+                    href="/profile" 
+                    className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 transition-colors inline-flex items-center"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    <User className="h-5 w-5 mr-2" />
+                    Profile
+                  </Link>
+                  <div className="block">
+                    <button 
+                      onClick={handleSignOut} 
+                      className="px-4 py-2 border border-primary text-white rounded-md hover:bg-primary/90 transition-colors inline-flex items-center"
+                    >
+                      <LogOut className="h-5 w-5 mr-2" />
+                      Sign out
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <button 
+                    onClick={handleSignIn} 
+                    className="px-4 py-2 border border-primary text-primary rounded-md hover:bg-primary hover:text-white transition-colors inline-flex items-center mt-2"
+                  >
+                    <LogIn className="h-5 w-5 mr-1" />
+                    Sign in
+                  </button>
+                  <Link 
+                    href="/register"
+                    className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 transition-colors inline-block mt-2"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    Sign up
+                  </Link>
+                </>
+              )}
             </div>
           </div>
         )}

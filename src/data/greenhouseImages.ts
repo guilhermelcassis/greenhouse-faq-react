@@ -1,18 +1,33 @@
-// Greenhouse images array with all images from the folder
-export const greenhouseGalleryImages = Array.from({ length: 44 }, (_, i) => ({
-  src: `/images/greenhouse/image (${i + 1}).jpg`,
-  alt: `Greenhouse event image ${i + 1}`,
-  width: 1200,
-  height: 800
-}));
+import { StaticImageData } from 'next/image';
 
-// Mission trip images array with all images from the folder
-export const missionTripImages = Array.from({ length: 10 }, (_, i) => ({
-  src: `/images/mission-trip/mt (${i + 1}).jpg`,
-  alt: `Mission trip image ${i + 1}`,
-  width: 1200,
-  height: 800
-}));
+// Define the interface for image data
+export interface ImageData {
+  src: string;
+  alt?: string;
+  width?: number;
+  height?: number;
+}
+
+// Helper function to create image arrays with consistent naming
+function createImageArray(
+  basePath: string,
+  count: number,
+  prefix: string = '',
+  dimensions: { width: number; height: number } = { width: 1200, height: 800 }
+): ImageData[] {
+  return Array.from({ length: count }, (_, i) => ({
+    src: `${basePath}${prefix}(${i + 1}).jpg`,
+    alt: basePath.includes('greenhouse') 
+      ? `Greenhouse event image ${i + 1}` 
+      : `Mission trip image ${i + 1}`,
+    width: dimensions.width,
+    height: dimensions.height
+  }));
+}
+
+// Create the base image arrays
+const greenhouseGalleryImages = createImageArray('/images/greenhouse/image ', 44);
+const missionTripImages = createImageArray('/images/mission-trip/mt ', 10);
 
 // Combined images for background mosaics
 export const allImages = [
@@ -20,18 +35,24 @@ export const allImages = [
   ...missionTripImages
 ];
 
-// Function to get a subset of images for specific sections
-export function getRandomImages(sourceArray: typeof greenhouseGalleryImages, count: number) {
+// Function to get a consistent subset of images for specific sections
+export function getConsistentImages(sourceArray: ImageData[], indices: number[]): ImageData[] {
+  return indices.map(i => sourceArray[i]);
+}
+
+// Function to get a random subset of images (for non-critical UI elements)
+export function getRandomImages(sourceArray: ImageData[], count: number): ImageData[] {
+  // Use a consistent seed or sorting method if you need deterministic results
   const shuffled = [...sourceArray].sort(() => 0.5 - Math.random());
   return shuffled.slice(0, count);
 }
 
-// Curated selections for different sections
-export const featuredGreenhouseImages = getRandomImages(greenhouseGalleryImages, 44);
-export const featuredMissionImages = getRandomImages(missionTripImages, 10);
+// Export the main image collections
+export const featuredGreenhouseImages = greenhouseGalleryImages;
+export const featuredMissionImages = missionTripImages;
 
-// Categorized images for specific themes
-export const worshipImages = [1, 5, 12, 18, 24, 30].map(i => greenhouseGalleryImages[i - 1]);
-export const teachingImages = [2, 8, 15, 22, 28, 35].map(i => greenhouseGalleryImages[i - 1]);
-export const communityImages = [3, 10, 17, 25, 32, 38].map(i => greenhouseGalleryImages[i - 1]);
-export const ministryImages = [4, 11, 20, 27, 34, 40].map(i => greenhouseGalleryImages[i - 1]); 
+// Categorized images for specific themes (using zero-based indices)
+export const worshipImages = getConsistentImages(greenhouseGalleryImages, [0, 4, 11, 17, 23, 29]);
+export const teachingImages = getConsistentImages(greenhouseGalleryImages, [1, 7, 14, 21, 27, 34]);
+export const communityImages = getConsistentImages(greenhouseGalleryImages, [2, 9, 16, 24, 31, 37]);
+export const ministryImages = getConsistentImages(greenhouseGalleryImages, [3, 10, 19, 26, 33, 39]); 
