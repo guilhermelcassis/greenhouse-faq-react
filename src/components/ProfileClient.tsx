@@ -1,9 +1,11 @@
 'use client';
 
-import React from 'react';
-import { useSession } from 'next-auth/react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatCurrency, formatDate } from '@/lib/utils';
+// Import Firebase auth (you should have something like this)
+import { getAuth, onAuthStateChanged } from 'firebase/auth';
+// import { firebaseApp } from '@/lib/firebase'; // Adjust import based on your firebase setup
 
 interface Payment {
   id: string;
@@ -17,8 +19,43 @@ interface ProfileClientProps {
   payments: Payment[];
 }
 
+interface User {
+  name?: string | null;
+  email?: string | null;
+  uid?: string;
+}
+
 export default function ProfileClient({ payments }: ProfileClientProps) {
-  const { data: session } = useSession();
+  // Replaced useSession with Firebase auth state
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+  
+  useEffect(() => {
+    const auth = getAuth();
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      if (firebaseUser) {
+        setUser({
+          name: firebaseUser.displayName,
+          email: firebaseUser.email,
+          uid: firebaseUser.uid
+        });
+      } else {
+        setUser(null);
+      }
+      setLoading(false);
+    });
+    
+    // Cleanup subscription
+    return () => unsubscribe();
+  }, []);
+  
+  if (loading) {
+    return <div>Loading profile...</div>;
+  }
+  
+  if (!user) {
+    return <div>Please sign in to view your profile.</div>;
+  }
   
   return (
     <div className="container mx-auto py-8">
@@ -31,8 +68,8 @@ export default function ProfileClient({ payments }: ProfileClientProps) {
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
-              <p><strong>Name:</strong> {session?.user?.name}</p>
-              <p><strong>Email:</strong> {session?.user?.email}</p>
+              <p><strong>Name:</strong> {user?.name || 'N/A'}</p>
+              <p><strong>Email:</strong> {user?.email || 'N/A'}</p>
             </div>
           </CardContent>
         </Card>

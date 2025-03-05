@@ -5,7 +5,9 @@ import { db } from '@/lib/firebase';
 import { collection, doc, setDoc, deleteDoc, getDocs } from 'firebase/firestore';
 
 // Same admin emails
-const ADMIN_EMAILS = process.env.ADMIN_EMAILS ? process.env.ADMIN_EMAILS.split(',') : [];
+const adminEmails = process.env.NEXT_PUBLIC_ADMIN_EMAILS 
+  ? process.env.NEXT_PUBLIC_ADMIN_EMAILS.split(',').map(email => email.trim().toLowerCase()) 
+  : [];
 
 // Collection name
 const PAYMENTS_COLLECTION = 'payments';
@@ -111,7 +113,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if user is admin
-    if (!userEmail || !ADMIN_EMAILS.includes(userEmail)) {
+    if (!userEmail || !adminEmails.includes(userEmail.toLowerCase())) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
 

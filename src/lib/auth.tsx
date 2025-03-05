@@ -63,9 +63,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
           
           // Check if user is admin
-          // Same admin emails
-          const adminEmails = process.env.ADMIN_EMAILS ? process.env.ADMIN_EMAILS.split(',') : [];
-          const isAdmin = adminEmails.includes(firebaseUser.email || '');
+          const adminEmails = process.env.NEXT_PUBLIC_ADMIN_EMAILS 
+            ? process.env.NEXT_PUBLIC_ADMIN_EMAILS.split(',').map(email => email.trim().toLowerCase()) 
+            : [];
+          
+          console.log('Admin emails from env:', adminEmails);
+          console.log('Current user email:', firebaseUser.email);
+          console.log('Is admin check result:', adminEmails.includes((firebaseUser.email || '').toLowerCase()));
+          
+          const isAdmin = adminEmails.includes((firebaseUser.email || '').toLowerCase());
           
           // Instead of creating a new object, add the isAdmin property directly
           // This preserves all the original methods

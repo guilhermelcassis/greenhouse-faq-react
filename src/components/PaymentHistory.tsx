@@ -1,7 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useSession } from 'next-auth/react';
+import { useState, useEffect, useCallback } from 'react';
+// Import Firebase auth with User type
+import { getAuth, onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
+// You can also use the useAuth hook from Providers if preferred
+// import { useAuth } from './Providers';
 
 interface Payment {
   id: string;
@@ -12,22 +15,41 @@ interface Payment {
   description: string | null;
 }
 
+// Removed unused User interface
+
 export default function PaymentHistory() {
-  const { data: session } = useSession();
+  const [user, setUser] = useState<FirebaseUser | null>(null);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Check authentication with Firebase
   useEffect(() => {
-    if (session) {
-      fetchPaymentHistory();
-    }
-  }, [session]);
+    const auth = getAuth();
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      setUser(firebaseUser);
+      // Once we have the user state, loading will be handled by the payment fetch
+      if (!firebaseUser) {
+        setLoading(false);
+      }
+    });
+    
+    return () => unsubscribe();
+  }, []);
 
-  const fetchPaymentHistory = async () => {
+  // Define fetchPaymentHistory with useCallback to avoid dependency issues
+  const fetchPaymentHistory = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/payments');
+      // You might need to pass user ID or token in headers for authorization
+      if (!user) return;
+      
+      const response = await fetch('/api/payments', {
+        headers: {
+          // Optional: Include auth token if your API requires it
+          'Authorization': `Bearer ${await user.getIdToken()}`
+        }
+      });
       
       if (!response.ok) {
         throw new Error('Failed to fetch payment history');
@@ -40,8 +62,16 @@ export default function PaymentHistory() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
 
+  // Fetch payment history when user auth state changes
+  useEffect(() => {
+    if (user) {
+      fetchPaymentHistory();
+    }
+  }, [user, fetchPaymentHistory]);
+
+  if (!user) return <div className="text-center py-4">Please log in to view payment history.</div>;
   if (loading) return <div className="text-center py-4">Loading payment history...</div>;
   if (error) return <div className="text-red-500 py-4">Error: {error}</div>;
   if (payments.length === 0) return <div className="py-4">No payment history found.</div>;

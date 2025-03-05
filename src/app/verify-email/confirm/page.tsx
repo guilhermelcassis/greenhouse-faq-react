@@ -104,7 +104,7 @@ function VerifyEmailConfirmContent() {
     };
     
     verifyEmail();
-  }, [searchParams, user]);
+  }, [searchParams, user, mode, oobCode]);
   
   return (
     <div className="min-h-screen bg-background">

@@ -33,7 +33,9 @@ interface Charge {
 }
 
 // Same admin emails
-const ADMIN_EMAILS = process.env.ADMIN_EMAILS ? process.env.ADMIN_EMAILS.split(',') : [];
+const adminEmails = process.env.NEXT_PUBLIC_ADMIN_EMAILS 
+  ? process.env.NEXT_PUBLIC_ADMIN_EMAILS.split(',').map(email => email.trim().toLowerCase()) 
+  : [];
 
 export default function PaymentHistory() {
   const { user, loading } = useAuth();
@@ -101,7 +103,7 @@ export default function PaymentHistory() {
       }
       
       // Check if user is admin
-      if (!user.email || !ADMIN_EMAILS.includes(user.email)) {
+      if (!user.email || !adminEmails.includes(user.email.toLowerCase())) {
         router.push('/unauthorized');
         return;
       }

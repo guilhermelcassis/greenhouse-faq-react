@@ -3,7 +3,9 @@ import Stripe from 'stripe';
 import { auth } from '@/lib/firebase-admin';
 
 // Same admin emails
-const ADMIN_EMAILS = process.env.ADMIN_EMAILS ? process.env.ADMIN_EMAILS.split(',') : [];
+const adminEmails = process.env.NEXT_PUBLIC_ADMIN_EMAILS 
+  ? process.env.NEXT_PUBLIC_ADMIN_EMAILS.split(',').map(email => email.trim().toLowerCase()) 
+  : [];
 
 export async function GET(request: Request) {
   try {
@@ -22,7 +24,7 @@ export async function GET(request: Request) {
       const userEmail = decodedToken.email;
       
       // Check if user is admin
-      if (!userEmail || !ADMIN_EMAILS.includes(userEmail)) {
+      if (!userEmail || !adminEmails.includes(userEmail.toLowerCase())) {
         return NextResponse.json({ error: 'Unauthorized - Admin access required' }, { status: 403 });
       }
       
