@@ -1,11 +1,59 @@
 import { NextResponse } from 'next/server';
-import Stripe from 'stripe';
 import { auth } from '@/lib/firebase-admin';
+import { db } from '@/lib/firebase';
+import { collection, getDocs, query, limit, startAfter, DocumentData, QueryDocumentSnapshot, getDoc, doc } from 'firebase/firestore';
+import { stripe } from '@/lib/stripe';
 
 // Same admin emails
 const adminEmails = process.env.NEXT_PUBLIC_ADMIN_EMAILS 
   ? process.env.NEXT_PUBLIC_ADMIN_EMAILS.split(',').map(email => email.trim().toLowerCase()) 
   : [];
+
+interface BillingDetails {
+  email: string;
+  name: string;
+  phone: string;
+}
+
+interface CardDetails {
+  brand?: string;
+  last4?: string;
+}
+
+interface PaymentMethodDetails {
+  card?: CardDetails;
+  type?: string;
+}
+
+interface BalanceTransaction {
+  exchange_rate?: number;
+  currency: string;
+  amount: number;
+}
+
+interface LastPaymentError {
+  message?: string;
+  code?: string;
+  type?: string;
+}
+
+interface Charge {
+  id: string;
+  amount: number;
+  currency: string;
+  status: string;
+  created: number;
+  billing_details: BillingDetails;
+  payment_method_details: PaymentMethodDetails | null;
+  receipt_url: string | null;
+  balance_transaction: BalanceTransaction | null;
+  last_payment_error: LastPaymentError | null;
+  refunded: boolean;
+  description: string | null;
+}
+
+// Collection name
+const PAYMENTS_COLLECTION = 'payments';
 
 export async function GET(request: Request) {
   try {
@@ -34,130 +82,226 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Unauthorized - Invalid token' }, { status: 401 });
     }
     
-    // Initialize Stripe
-    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-      apiVersion: '2025-02-24.acacia',
-    });
+    // Fetch from Firestore instead of Stripe
+    console.log('Fetching ALL payment data from Firestore database');
     
-    console.log('Fetching ALL payment data for admin - with proper pagination');
-    
-    // Fetch ALL charges using pagination
-    const allCharges: Stripe.Charge[] = [];
-    let hasMore = true;
-    let startingAfter: string | undefined = undefined;
-    
-    while (hasMore) {
-      console.log(`Fetching batch of charges ${startingAfter ? 'after ' + startingAfter : '(first batch)'}`);
+    try {
+      // Get all payments from the Firestore collection using pagination
+      // to handle potentially large datasets
+      const allPayments: DocumentData[] = [];
+      const batchSize = 500; // Firestore can handle up to 1000, but we'll use 500 to be safe
       
-      const params: Stripe.ChargeListParams = {
-        limit: 100, // Still use 100 here as that's a good batch size
-        expand: ['data.customer', 'data.balance_transaction']
-      };
+      // Initial query - don't use 'created' field as it might be missing in some documents
+      // Use document ID instead which every document has
+      let q = query(
+        collection(db, PAYMENTS_COLLECTION),
+        limit(batchSize)
+      );
       
-      if (startingAfter) {
-        params.starting_after = startingAfter;
-      }
+      let lastDoc: QueryDocumentSnapshot | null = null;
+      let batchCount = 0;
       
-      const charges = await stripe.charges.list(params);
-      console.log(`Retrieved ${charges.data.length} charges in this batch`);
+      // Keep fetching until we get an empty batch
+      let continueLoop = true;
       
-      allCharges.push(...charges.data);
-      
-      // Check if there are more charges to fetch
-      hasMore = charges.has_more;
-      
-      // Set the starting point for the next batch
-      if (hasMore && charges.data.length > 0) {
-        startingAfter = charges.data[charges.data.length - 1].id;
-      }
-    }
-    
-    // Similarly fetch ALL payment intents
-    const allPaymentIntents: Stripe.PaymentIntent[] = [];
-    hasMore = true;
-    startingAfter = undefined;
-    
-    while (hasMore) {
-      console.log(`Fetching batch of payment intents ${startingAfter ? 'after ' + startingAfter : '(first batch)'}`);
-      
-      const params: Stripe.PaymentIntentListParams = {
-        limit: 100,
-      };
-      
-      if (startingAfter) {
-        params.starting_after = startingAfter;
-      }
-      
-      const paymentIntents = await stripe.paymentIntents.list(params);
-      console.log(`Retrieved ${paymentIntents.data.length} payment intents in this batch`);
-      
-      allPaymentIntents.push(...paymentIntents.data);
-      
-      // Check if there are more payment intents to fetch
-      hasMore = paymentIntents.has_more;
-      
-      // Set the starting point for the next batch
-      if (hasMore && paymentIntents.data.length > 0) {
-        startingAfter = paymentIntents.data[paymentIntents.data.length - 1].id;
-      }
-    }
-    
-    // Process all the charges (same as before)
-    const processedCharges = allCharges.map(charge => {
-      const customer = typeof charge.customer === 'object' ? charge.customer : null;
-      
-      return {
-        id: charge.id,
-        amount: charge.amount,
-        currency: charge.currency,
-        status: charge.status,
-        created: charge.created,
-        description: charge.description,
-        billing_details: {
-          email: charge.billing_details?.email || (customer && 'email' in customer ? customer.email : ''),
-          name: charge.billing_details?.name || (customer && 'name' in customer ? customer.name : ''),
-          phone: charge.billing_details?.phone || (customer && 'phone' in customer ? customer.phone : '')
-        },
-        payment_method_details: charge.payment_method_details,
-        receipt_url: charge.receipt_url || '',
-        balance_transaction: charge.balance_transaction
-      };
-    });
-    
-    // Process all payment intents (same as before)
-    const processedPaymentIntents = allPaymentIntents.map(intent => ({
-      id: intent.id,
-      amount: intent.amount,
-      currency: intent.currency,
-      status: intent.status,
-      created: intent.created,
-      description: intent.description || null
-    }));
-    
-    // Log info about total counts
-    console.log(`Found TOTAL of ${processedPaymentIntents.length} payment intents and ${processedCharges.length} charges`);
-    
-    return NextResponse.json({ 
-      paymentIntents: processedPaymentIntents,
-      charges: processedCharges
-    });
-    } catch (error: unknown) { // Change 'any' to 'unknown'
-      // More detailed error logging
-      if (error instanceof Error) { // Check if error is an instance of Error
-        console.error('Error fetching payment history:', error.message);
-        if (error.stack) console.error(error.stack);
+      while (continueLoop) {
+        batchCount++;
+        console.log(`Fetching batch #${batchCount}...`);
         
-        return NextResponse.json({ 
-          error: 'Failed to fetch payment history',
-          details: error.message 
-        }, { status: 500 });
-      } else {
-        // Handle unexpected error types
-        console.error('Unexpected error:', error);
-        return NextResponse.json({ 
-          error: 'Failed to fetch payment history',
-          details: 'An unexpected error occurred' 
-        }, { status: 500 });
+        // If we have a last document from previous batch, start after it
+        if (lastDoc) {
+          q = query(
+            collection(db, PAYMENTS_COLLECTION),
+            startAfter(lastDoc),
+            limit(batchSize)
+          );
+        }
+        
+        const snapshot = await getDocs(q);
+        
+        console.log(`Batch #${batchCount} has ${snapshot.docs.length} documents`);
+        
+        // Stop if we got an empty batch
+        if (snapshot.empty || snapshot.docs.length === 0) {
+          console.log('Received empty batch, ending pagination');
+          continueLoop = false;
+          break;
+        }
+        
+        // Get the last visible document for next batch
+        lastDoc = snapshot.docs[snapshot.docs.length - 1];
+        
+        // Add documents to our array
+        snapshot.docs.forEach(doc => {
+          allPayments.push({
+            ...doc.data(),
+            firestoreId: doc.id // Keep the Firestore document ID
+          });
+        });
+        
+        console.log(`Retrieved batch of ${snapshot.docs.length} payments, total so far: ${allPayments.length}`);
       }
+      
+      console.log(`Pagination complete. Retrieved ${allPayments.length} total payments from database`);
+      
+      // Transform payment data to match the expected structure
+      const charges = allPayments.map(data => {
+        // Ensure refunded status is properly set as a boolean
+        const isRefunded = data.refunded === true || 
+                          data.status?.toLowerCase() === 'refunded' || 
+                          (data.description?.toLowerCase() || '').includes('refund');
+        
+        return {
+          id: data.id || data.stripe_id || data.firestoreId,
+          amount: data.amount || 0,
+          currency: data.currency || 'eur',
+          status: data.status || 'unknown',
+          refunded: isRefunded, // Set refunded status explicitly
+          created: data.created || 0,
+          description: data.description || null,
+          billing_details: {
+            email: data.billing_details?.email || data.email || '',
+            name: data.billing_details?.name || '',
+            phone: data.billing_details?.phone || ''
+          },
+          payment_method_details: data.payment_method_details || null,
+          receipt_url: data.receipt_url || '',
+          // Include the Firestore balance_transaction structure if it exists
+          balance_transaction: data.balance_transaction || 
+            (data.amount_eur && data.amount ? 
+              { 
+                exchange_rate: data.amount_eur / data.amount,
+                currency: data.currency || 'eur',
+                amount: data.amount_eur || data.amount
+              } : undefined),
+          last_payment_error: null
+        };
+      });
+      
+      console.log(`Transformed ${charges.length} payment records for client display`);
+      
+      // When retrieving charges, expand the payment_intent field
+      const stripeCharges = await stripe?.charges.list({
+        limit: 10000,
+        expand: ['data.balance_transaction', 'data.payment_intent']
+      });
+      
+      const processedCharges = stripeCharges?.data.map(charge => {
+        // Extract error information from payment_intent if available
+        let last_payment_error = null;
+        
+        if (charge.payment_intent && typeof charge.payment_intent !== 'string') {
+          last_payment_error = charge.payment_intent.last_payment_error || null;
+        }
+        
+        // Fall back to other error fields on the charge if payment_intent isn't available
+        if (!last_payment_error && charge.failure_message) {
+          last_payment_error = {
+            message: charge.failure_message,
+            code: charge.failure_code
+          };
+        }
+        
+        return {
+          id: charge.id,
+          amount: charge.amount,
+          currency: charge.currency,
+          status: charge.status,
+          refunded: charge.refunded || false,
+          created: charge.created,
+          description: charge.description || null,
+          billing_details: charge.billing_details,
+          payment_method_details: charge.payment_method_details,
+          receipt_url: charge.receipt_url,
+          balance_transaction: charge.balance_transaction,
+          last_payment_error: last_payment_error
+        } as Charge;
+      });
+      
+      // When returning payment history data, include the last sync time
+      const syncStatusDoc = await getDoc(doc(db, 'system', 'syncStatus'));
+      const lastSyncTime = syncStatusDoc.exists() ? syncStatusDoc.data()?.lastSyncTime : null;
+      
+      // Combine both data sources
+      const combinedCharges = [...charges];
+      
+      // Add Stripe charges but avoid duplicates
+      if (processedCharges && processedCharges.length > 0) {
+        processedCharges.forEach(stripeCharge => {
+          // Check if we already have this charge from Firestore
+          const existingChargeIndex = combinedCharges.findIndex(c => c.id === stripeCharge.id);
+          
+          if (existingChargeIndex >= 0) {
+            // If we have this payment in Firestore, ensure refund status is consistent
+            // Priority to "refunded" status (if either source says it's refunded, treat it as refunded)
+            (combinedCharges[existingChargeIndex] as Charge).refunded = 
+              (combinedCharges[existingChargeIndex] as Charge).refunded || 
+              stripeCharge.refunded || 
+              false;
+          } else {
+            // If not in Firestore, add from Stripe with proper casting
+            // Create a modified version with null for last_payment_error to match expected type
+            const compatibleCharge = {
+              ...stripeCharge,
+              last_payment_error: null // Force to null to match expected type
+            };
+            combinedCharges.push(compatibleCharge);
+          }
+        });
+      }
+      
+      // Create a Map to handle uniqueness properly
+      const uniqueChargesMap = new Map();
+      
+      // Process all charges to ensure refund status is correctly set
+      combinedCharges.forEach(charge => {
+        // Convert description to lowercase for case-insensitive checking if it exists
+        const description = charge.description?.toLowerCase() || '';
+        
+        // Define a proper refunded flag considering multiple conditions
+        const shouldBeMarkedAsRefunded = 
+          charge.refunded === true || 
+          charge.status?.toLowerCase() === 'refunded' ||
+          description.includes('refund');
+        
+        // Create a charge with proper refunded status
+        const processedCharge = {
+          ...charge,
+          refunded: shouldBeMarkedAsRefunded
+        };
+        
+        // Use the Map to store the charge, overwriting any previous version of the same charge
+        uniqueChargesMap.set(charge.id, processedCharge);
+      });
+      
+      // Convert the Map back to an array
+      const uniqueCharges = Array.from(uniqueChargesMap.values());
+      
+      return NextResponse.json({ 
+        charges: uniqueCharges,
+        lastSyncTime
+      });
+    } catch (firestoreError) {
+      console.error('Firestore error:', firestoreError);
+      throw new Error('Failed to fetch payment data from database');
     }
+  } catch (error: unknown) {
+    // More detailed error logging
+    if (error instanceof Error) {
+      console.error('Error fetching payment history:', error.message);
+      if (error.stack) console.error(error.stack);
+      
+      return NextResponse.json({ 
+        error: 'Failed to fetch payment history',
+        details: error.message 
+      }, { status: 500 });
+    } else {
+      // Handle unexpected error types
+      console.error('Unexpected error:', error);
+      return NextResponse.json({ 
+        error: 'Failed to fetch payment history',
+        details: 'An unexpected error occurred' 
+      }, { status: 500 });
+    }
+  }
 }

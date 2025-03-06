@@ -23,20 +23,23 @@ interface User {
 
 interface DonateProps {
   user: User; // Use the User interface instead of ExtendedUser
+  userEmail: string;
+  userId: string;
 }
 
-export default function DonateComponent({ user }: DonateProps) {
+export default function DonateComponent({ user, userEmail, userId }: DonateProps) {
   const [donations, setDonations] = useState<{[key: number]: number}>({
     50: 0,
     100: 0
   });
+  const [customAmount, setCustomAmount] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
   const [clientSecret, setClientSecret] = useState('');
 
-  // Calculate total donation amount
+  // Calculate total donation amount including custom amount with decimal support
   const totalAmount = Object.entries(donations).reduce(
     (total, [amount, quantity]) => total + (Number(amount) * quantity), 
-    0
+    customAmount ? parseFloat(customAmount) : 0
   );
 
   const updateQuantity = (amount: number, delta: number) => {
@@ -46,42 +49,51 @@ export default function DonateComponent({ user }: DonateProps) {
     });
   };
 
-  const createPaymentIntent = async () => {
-    if (totalAmount === 0) return;
-    
-    setIsLoading(true);
-    
+  // Updated handler for custom amount with decimal support
+  const handleCustomAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    // Allow empty input, digits, and one decimal point
+    if (value === '' || /^\d*\.?\d{0,2}$/.test(value)) {
+      setCustomAmount(value);
+    }
+  };
+
+  const createPaymentIntent = async (amount: number) => {
     try {
-      // Create a payment intent
-      const response = await fetch('/api/checkout/payment-intent', {
+      // Get the auth token from the user object
+      const token = await user.getIdToken();
+      
+      // Now include the token in the request headers
+      const response = await fetch('/api/create-payment-intent', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${await user.getIdToken()}`
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          items: Object.entries(donations)
-            .filter(([, quantity]) => quantity > 0) // Use '_' for unused variable
-            .map(([amount, quantity]) => ({
-              name: `€${amount} Donation`,
-              amount: Number(amount) * 100, // Stripe uses cents
-              quantity,
-            })),
-          amount: totalAmount * 100, // Convert to cents for Stripe
+          amount: amount * 100, // convert to cents
+          currency: 'eur',
+          // Include both userId and email in metadata
+          metadata: {
+            userId: userId,
+            email: userEmail,
+            items: JSON.stringify([{ name: `€${amount} Donation`, amount: amount * 100, quantity: 1 }]),
+          },
+          // Set receipt_email explicitly
+          receipt_email: userEmail,
         }),
       });
       
+      const data = await response.json();
+      
       if (!response.ok) {
-        throw new Error('Failed to create payment intent');
+        throw new Error(data.message || 'Failed to create payment intent');
       }
       
-      const { clientSecret } = await response.json();
-      setClientSecret(clientSecret);
+      return data.clientSecret;
     } catch (error) {
       console.error('Error creating payment intent:', error);
-      alert('Something went wrong. Please try again.');
-    } finally {
-      setIsLoading(false);
+      throw error;
     }
   };
 
@@ -140,15 +152,40 @@ export default function DonateComponent({ user }: DonateProps) {
                 </button>
               </div>
             </div>
+            
+            {/* Custom amount row with decimal support */}
+            <div className="flex items-center justify-between p-4 border rounded-lg hover:border-primary transition-colors">
+              <div className="font-medium text-lg">Custom Amount (€)</div>
+              <div className="w-24">
+                <input
+                  type="text"
+                  value={customAmount}
+                  onChange={handleCustomAmountChange}
+                  placeholder="0.00"
+                  className="w-full p-2 border rounded-md text-right"
+                  aria-label="Custom donation amount"
+                />
+              </div>
+            </div>
           </div>
           
-          {/* Total amount */}
+          {/* Total amount - format to show 2 decimal places */}
           <div className="text-2xl font-bold text-center mb-6 py-3 bg-secondary/20 rounded-lg">
-            Total: €{totalAmount}
+            Total: €{totalAmount.toFixed(2)}
           </div>
           
           <button
-            onClick={createPaymentIntent}
+            onClick={async () => {
+              try {
+                setIsLoading(true);
+                const secret = await createPaymentIntent(totalAmount);
+                setClientSecret(secret);
+              } catch (error) {
+                console.error('Payment initialization failed:', error);
+              } finally {
+                setIsLoading(false);
+              }
+            }}
             disabled={totalAmount === 0 || isLoading}
             className={`
               w-full py-4 px-6 rounded-lg flex items-center justify-center gap-3 text-lg font-medium
@@ -159,7 +196,7 @@ export default function DonateComponent({ user }: DonateProps) {
               }`}
           >
             <CreditCard size={22} />
-            {isLoading ? 'Processing...' : `Donate €${totalAmount}`}
+            {isLoading ? 'Processing...' : `Pay €${totalAmount.toFixed(2)}`}
           </button>
         </div>
       ) : (
@@ -231,7 +268,15 @@ function CheckoutFormContent({ totalAmount }: { totalAmount: number }) {
       <div className="mb-6">
         <h3 className="text-lg font-medium mb-3">Billing Address</h3>
         <div className="border rounded-lg p-4 hover:border-primary transition-colors">
-          <AddressElement options={{ mode: 'billing' }} />
+          <AddressElement options={{ 
+            mode: 'shipping',
+            fields: {
+              phone: 'always',
+            },
+            defaultValues: {
+              phone: '',
+            }
+          }} />
         </div>
       </div>
 
@@ -242,7 +287,7 @@ function CheckoutFormContent({ totalAmount }: { totalAmount: number }) {
       )}
 
       <div className="text-2xl font-bold text-center mb-6 py-3 bg-secondary/20 rounded-lg">
-        Total: €{totalAmount}
+        Total: €{totalAmount.toFixed(2)}
       </div>
 
       <button

@@ -13,6 +13,7 @@ interface StripePayment {
   status: string;
   created: string;
   email: string;
+  refunded: boolean;
   description: string | null;
   amount_eur: number | null;
   receipt_url: string | null;
@@ -74,14 +75,20 @@ export default function ProfilePage() {
         // Log each payment processing step
         data.payments
           .filter((payment: StripePayment) => {
-            const isSucceeded = payment.status === 'succeeded';
-            console.log(`Payment ${payment.id} status:`, payment.status, isSucceeded ? 'COUNTED' : 'SKIPPED');
-            return isSucceeded;
+            // Check if the payment status is 'succeeded'
+            if (payment.status === 'succeeded' && !payment.refunded && !(payment.description?.toLowerCase().includes('refund'))) {
+              const isSucceeded = payment.status === 'succeeded';
+              console.log(`Payment ${payment.id} status:`, payment.status, isSucceeded ? 'COUNTED' : 'SKIPPED');
+              return isSucceeded;
+            }
           })
           .forEach((payment: StripePayment) => {
-            const amount = (payment.amount_eur || payment.amount) / 100;
-            console.log(`Adding amount to total: €${amount}`);
-            totalEuros += amount;
+            // Check if the payment status is 'succeeded'
+            if (payment.status === 'succeeded' && !payment.refunded && !(payment.description?.toLowerCase().includes('refund'))) {
+              const amount = (payment.amount_eur || payment.amount) / 100;
+              console.log(`Adding amount to total: €${amount}`);
+              totalEuros += amount;
+            }
           });
       }
       
@@ -229,7 +236,7 @@ export default function ProfilePage() {
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {payments
-                .filter(payment => payment.status !== 'failed')
+                .filter(payment => payment.status !== 'failed' && !payment.refunded && !(payment.description?.toLowerCase().includes('refund')))
                 .map((payment) => (
                   <tr key={payment.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-5 whitespace-nowrap">

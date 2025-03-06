@@ -30,6 +30,12 @@ interface Charge {
   };
   receipt_url?: string;
   balance_transaction?: BalanceTransaction;
+  last_payment_error?: {
+    message?: string;
+    code?: string;
+    decline_code?: string;
+    type?: string;
+  };
 }
 
 // Same admin emails
@@ -59,7 +65,7 @@ export default function PaymentHistory() {
       
       // Get Firebase token for auth
       const token = await user?.getIdToken();
-      console.log('Got authentication token, fetching payment history...');
+      console.log('Got authentication token, fetching payment history from database...');
       
       const response = await fetch('/api/payments/history', {
         headers: {
@@ -79,7 +85,7 @@ export default function PaymentHistory() {
         console.warn('No charges data returned from API:', data);
         setPayments([]);
       } else {
-        console.log(`Successfully loaded ${data.charges.length} charges`);
+        console.log(`Successfully loaded ${data.charges.length} charges from database`);
         setPayments(data.charges || []);
       }
     } catch (error) {
@@ -108,6 +114,11 @@ export default function PaymentHistory() {
       fetchPaymentHistory();
     }
   }, [user, loading, router, fetchPaymentHistory]);
+
+  useEffect(() => {
+    // Set default status filter to 'failed' for the failed payments page
+    setStatusFilter('failed');
+  }, []);
 
   const formatDate = (timestamp: number) => {
     return new Date(timestamp * 1000).toLocaleDateString();
@@ -154,10 +165,16 @@ export default function PaymentHistory() {
   const filteredPayments = payments
     .filter(charge => {
       // Filter by status
-      if (statusFilter !== 'all' && charge.status !== statusFilter) {
-        return false;
-      }
+      const statusMatch = 
+        statusFilter === 'all' || 
+        charge.status === statusFilter ||
+        // Include these additional statuses for failed payments
+        (statusFilter === 'failed' && 
+          ['failed', 'canceled', 'requires_payment_method', 'requires_action'].includes(charge.status));
       
+      // Use statusMatch in the return statement
+      if (!statusMatch) return false; // Add this line to utilize statusMatch
+
       // Filter by search term (name, email, phone)
       const searchLower = searchTerm.toLowerCase();
       const nameMatch = charge.billing_details?.name?.toLowerCase().includes(searchLower) || false;
@@ -362,6 +379,7 @@ export default function PaymentHistory() {
                     <th className="py-4 px-4 border-b border-gray-200 text-left text-xs font-medium text-primary uppercase tracking-wider">Phone</th>
                     <th className="py-4 px-4 border-b border-gray-200 text-left text-xs font-medium text-primary uppercase tracking-wider">Amount (EUR)</th>
                     <th className="py-4 px-4 border-b border-gray-200 text-left text-xs font-medium text-primary uppercase tracking-wider">Status</th>
+                    <th className="py-4 px-4 border-b border-gray-200 text-left text-xs font-medium text-primary uppercase tracking-wider">Failure Reason</th>
                     <th className="py-4 px-4 border-b border-gray-200 text-left text-xs font-medium text-primary uppercase tracking-wider">Receipt</th>
                   </tr>
                 </thead>
@@ -384,6 +402,21 @@ export default function PaymentHistory() {
                         }`}>
                           {charge.status}
                         </span>
+                      </td>
+                      <td className="py-5 px-4 whitespace-normal max-w-[200px] text-sm">
+                        {charge.last_payment_error ? (
+                          <div>
+                            {charge.last_payment_error.message && (
+                              <span className="text-red-600">{charge.last_payment_error.message}</span>
+                            )}
+                            {!charge.last_payment_error.message && charge.last_payment_error.decline_code && (
+                              <span className="text-amber-600">Declined: {charge.last_payment_error.decline_code}</span>
+                            )}
+                            {!charge.last_payment_error.message && !charge.last_payment_error.decline_code && charge.last_payment_error.code && (
+                              <span className="text-orange-600">Error code: {charge.last_payment_error.code}</span>
+                            )}
+                          </div>
+                        ) : 'No details available'}
                       </td>
                       <td className="py-5 px-4 whitespace-nowrap">
                         {charge.receipt_url ? (

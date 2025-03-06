@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
 import DonateComponent from '@/components/Donate';
@@ -8,10 +8,23 @@ import DonateComponent from '@/components/Donate';
 export default function DonatePage() {
   const { user, loading } = useAuth();
   const router = useRouter();
+  const [userMetadata, setUserMetadata] = useState<{ email: string; uid: string } | null>(null);
   
   useEffect(() => {
-    if (!loading && !user) {
-      router.push('/login?callbackUrl=/donate');
+    if (!loading) {
+      if (!user) {
+        // Redirect to login if not authenticated
+        router.push('/login?callbackUrl=/donate');
+      } else {
+        // Create user metadata to pass to donation component
+        setUserMetadata({
+          email: user.email || '',
+          uid: user.uid || ''
+        });
+        
+        // Log to verify email is being captured
+        console.log('User authenticated with email:', user.email);
+      }
     }
   }, [user, loading, router]);
   
@@ -25,7 +38,7 @@ export default function DonatePage() {
   }
   
   // Don't render anything if not authenticated - the useEffect will redirect
-  if (!user) {
+  if (!user || !userMetadata) {
     return null;
   }
   
@@ -46,7 +59,12 @@ export default function DonatePage() {
       {/* Main Content */}
       <section className="py-16 px-4">
         <div className="max-w-3xl mx-auto">
-          <DonateComponent user={user} />
+          {/* Pass explicit email and userId to ensure they're used in payment */}
+          <DonateComponent 
+            user={user} 
+            userEmail={userMetadata.email}
+            userId={userMetadata.uid}
+          />          
         </div>
       </section>
 

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/firebase-admin';
 import Stripe from 'stripe';
 import { db } from '@/lib/firebase';
-import { collection, doc, setDoc, deleteDoc, getDocs } from 'firebase/firestore';
+import { doc, setDoc, updateDoc, getDoc } from 'firebase/firestore';
 
 // Same admin emails
 const adminEmails = process.env.NEXT_PUBLIC_ADMIN_EMAILS 
@@ -12,80 +12,51 @@ const adminEmails = process.env.NEXT_PUBLIC_ADMIN_EMAILS
 // Collection name
 const PAYMENTS_COLLECTION = 'payments';
 
-// Currency conversion function
-// Define a type for the payment object
-interface Payment {
-  id: string;
-  amount: number;
-  currency: string;
-  balance_transaction?: {
-    exchange_rate?: number;
+// Define an interface for the sync status data
+interface SyncStatusData {
+  status: {
+    inProgress?: boolean;
+    success?: boolean;
+    message: string;
   };
-  billing_details?: {
-    email?: string;
-    name?: string;
-    phone?: string;
-  };
-  receipt_email?: string;
-  metadata?: {
-    email?: string;
-  };
-  status: string;
-  created: number;
-  description?: string;
-  customer?: {
-    id?: string;
-    email?: string;
-    name?: string;
-    phone?: string;
-  };
+  progress: number;
+  lastSyncTime?: number;
+  isComplete?: boolean;
+  lastProcessedId?: string;
 }
 
-function convertToEUR(payment: Payment): number {
-  // Default exchange rates (from major currencies to EUR)
-  // In a production app, you would use a real-time exchange rate API
-  const exchangeRates: Record<string, number> = {
-    'usd': 0.85,    // 1 USD = 0.85 EUR
-    'gbp': 1.15,    // 1 GBP = 1.15 EUR
-    'jpy': 0.0075,  // 1 JPY = 0.0075 EUR
-    'cad': 0.68,    // 1 CAD = 0.68 EUR
-    'aud': 0.63,    // 1 AUD = 0.63 EUR
-    'chf': 0.94,    // 1 CHF = 0.94 EUR
-    'cny': 0.13,    // 1 CNY = 0.13 EUR
-    'inr': 0.011,   // 1 INR = 0.011 EUR
-    'brl': 0.17,    // 1 BRL = 0.17 EUR
-    'mxn': 0.043,   // 1 MXN = 0.043 EUR
-    'eur': 1.0      // 1 EUR = 1.0 EUR (no conversion needed)
-  };
-
-  // Get the balance transaction for exchange rate if available
-  const balanceTransaction = payment.balance_transaction;
-  let exchangeRate: number | undefined;
-  
-  if (balanceTransaction && typeof balanceTransaction === 'object') {
-    exchangeRate = balanceTransaction.exchange_rate;
+// Add this helper function to safely update status
+async function updateSyncStatus(data: SyncStatusData) {
+  try {
+    const statusDocRef = doc(db, 'system', 'syncStatus');
+    const statusDoc = await getDoc(statusDocRef);
+    
+    if (!statusDoc.exists()) {
+      await setDoc(statusDocRef, data);
+    } else {
+      // Define possible value types for Firestore fields
+      type FirestoreFieldValue = string | number | boolean | null | undefined;
+      
+      // Flatten the nested status object for updateDoc
+      const flattenedData: Record<string, FirestoreFieldValue> = {
+        progress: data.progress
+      };
+      
+      // Add non-status fields
+      if (data.lastSyncTime !== undefined) flattenedData.lastSyncTime = data.lastSyncTime;
+      if (data.isComplete !== undefined) flattenedData.isComplete = data.isComplete;
+      if (data.lastProcessedId !== undefined) flattenedData.lastProcessedId = data.lastProcessedId;
+      
+      // Add status fields with dot notation
+      if (data.status.message !== undefined) flattenedData['status.message'] = data.status.message;
+      if (data.status.inProgress !== undefined) flattenedData['status.inProgress'] = data.status.inProgress;
+      if (data.status.success !== undefined) flattenedData['status.success'] = data.status.success;
+      
+      await updateDoc(statusDocRef, flattenedData);
+    }
+  } catch (error) {
+    console.error('Error updating sync status:', error);
   }
-
-  // Get currency (lowercase for consistency)
-  const currency = payment.currency?.toLowerCase() || 'usd';
-  
-  // Get amount (in cents/smallest currency unit)
-  const amount = payment.amount || 0;
-  
-  // First try to use the exchange rate from the balance transaction
-  if (exchangeRate && currency !== 'eur') {
-    // If we have a direct exchange rate to EUR
-    return Math.round(amount * exchangeRate);
-  }
-  
-  // Otherwise use our hardcoded rates
-  if (exchangeRates[currency]) {
-    return Math.round(amount * exchangeRates[currency]);
-  }
-  
-  // Default fallback - assume 1:1 exchange rate if currency is unknown
-  console.warn(`Unknown currency ${currency}, using 1:1 exchange rate`);
-  return amount;
 }
 
 export async function POST(request: NextRequest) {
@@ -117,244 +88,417 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
 
-    // Add this just before the sync logic to verify token validity
-    try {
-      // Verify the token and get a fresh one
-      const customToken = await auth.createCustomToken(userEmail);
-      console.log('Created custom token for verification:', customToken.substring(0, 10) + '...');
-      
-      // You can use this token if needed for subsequent Firebase operations
-    } catch (tokenError) {
-      console.error('Error creating Firebase token:', tokenError);
-      // Continue anyway, as the user may still have access
-    }
-
+    // Parse request body to get sync options
+    const body = await request.json().catch(() => ({}));
+    const syncType = body.syncType || 'quick'; // Default to quick sync
+    
     // Initialize Stripe
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
       apiVersion: '2025-02-24.acacia',
     });
     
-    console.log('Starting to sync ALL payments to Firestore...');
+    console.log(`Starting comprehensive sync of ${syncType === 'full' ? 'ALL' : 'recent'} payments to Firestore...`);
     
-    // Clear existing payments collection
-    try {
-      // Check if collection exists before trying to clear it
-      const existingPayments = await getDocs(collection(db, PAYMENTS_COLLECTION));
-      console.log(`Found ${existingPayments.size} existing payment documents`);
-      
-      if (existingPayments.size > 0) {
-        console.log('Clearing existing payments in Firestore...');
-        let deleteCount = 0;
-        
-        for (const doc of existingPayments.docs) {
-          try {
-            await deleteDoc(doc.ref);
-            deleteCount++;
-            if (deleteCount % 50 === 0) {
-              console.log(`Deleted ${deleteCount} existing payment records...`);
-            }
-          } catch (deleteError) {
-            console.error(`Error deleting document ${doc.id}:`, deleteError);
-          }
-        }
-        console.log(`Deleted ${deleteCount} existing payment records`);
-      } else {
-        console.log('No existing payments to clear');
-      }
-    } catch (clearError) {
-      console.error('Error clearing existing payments:', clearError);
-      // Continue anyway, we can still add new documents
-    }
-    
-    // Function to process and store payments by batch
-    type PaymentType = Stripe.Charge | Stripe.PaymentIntent;
-    const processPayments = async (payments: PaymentType[], type: string) => {
-      console.log(`Processing ${payments.length} ${type}...`);
-      let count = 0;
-      let errors = 0;
-      
-      for (const payment of payments) {
-        try {
-          // Extract email from the payment data
-          let email = '';
-          
-          if (type === 'charges') {
-            // For charges, check multiple sources for email
-            const customer = typeof payment.customer === 'object' ? payment.customer : null;
-            if ('billing_details' in payment) {
-              email = payment.billing_details?.email || 
-                      (customer && 'email' in customer ? customer.email : '') || 
-                      payment.receipt_email || 
-                      (payment.metadata?.email as string) || 
-                      '';
-            } else {
-              // For PaymentIntents
-              email = payment.receipt_email || 
-                    (payment.metadata?.email as string) || 
-                    '';
-            }
-          }
-          
-          if (email) {
-            // Standardize email to lowercase
-            email = email.toLowerCase();
-            
-            // Convert amount to EUR
-            const amountInEUR = convertToEUR(payment as Payment);
-            
-            // Store in Firestore with the original ID to avoid duplicates
-            const paymentDoc = {
-              id: payment.id,
-              stripe_id: payment.id, // Keep original ID for reference
-              type: type,
-              amount: payment.amount,
-              currency: payment.currency,
-              amount_eur: amountInEUR, // Add Euro amount
-              status: payment.status,
-              created: payment.created,
-              email: email,
-              description: payment.description || null,
-              last_synced: Date.now()
-            };
-            
-            // Add extra details for charges
-            if (type === 'charges') {
-              const customer = typeof payment.customer === 'object' ? payment.customer : null;
-              
-              // @ts-expect-error - Add these fields only for charges
-              paymentDoc.customer_id = customer?.id || null;
-
-              // Create a helper function to safely access billing details
-              const getBillingDetails = () => {
-                // Check if billing_details exists on the payment object
-                if ('billing_details' in payment && payment.billing_details) {
-                  return {
-                    email: payment.billing_details.email || (customer && 'email' in customer ? customer.email : ''),
-                    name: payment.billing_details.name || (customer && 'name' in customer ? customer.name : ''),
-                    phone: payment.billing_details.phone || (customer && 'phone' in customer ? customer.phone : '')
-                  };
-                }
-                
-                // Fallback when billing_details is not present
-                return {
-                  email: (customer && 'email' in customer ? customer.email : ''),
-                  name: (customer && 'name' in customer ? customer.name : ''),
-                  phone: (customer && 'phone' in customer ? customer.phone : '')
-                };
-              };
-
-              // @ts-expect-error - Add these fields only for charges
-              paymentDoc.billing_details = getBillingDetails();
-
-              // @ts-expect-error - Add these fields only for charges
-              paymentDoc.receipt_url = 'receipt_url' in payment ? payment.receipt_url || '' : '';
-            }
-            
-            try {
-              // Use setDoc with merge to avoid duplicates
-              await setDoc(doc(db, PAYMENTS_COLLECTION, payment.id), paymentDoc);
-              
-              count++;
-              if (count % 50 === 0) {
-                console.log(`Synced ${count} ${type} to Firestore...`);
-              }
-            } catch (writeError) {
-              console.error(`Error writing payment ${payment.id}:`, writeError);
-              errors++;
-            }
-          }
-        } catch (processError) {
-          console.error(`Error processing ${type} ${payment.id}:`, processError);
-          errors++;
-        }
-      }
-      
-      console.log(`Completed processing ${type}: ${count} succeeded, ${errors} failed`);
-      return count;
-    };
-    
-    // Fetch ALL charges using pagination - same as in history/route.ts
-    const allCharges: Stripe.Charge[] = [];
-    let hasMore = true;
-    let startingAfter: string | undefined = undefined;
-    
-    while (hasMore) {
-      console.log(`Fetching batch of charges ${startingAfter ? 'after ' + startingAfter : '(first batch)'}`);
-      
-      const params: Stripe.ChargeListParams = {
-        limit: 100,
-        expand: ['data.customer', 'data.balance_transaction']
-      };
-      
-      if (startingAfter) {
-        params.starting_after = startingAfter;
-      }
-      
-      const charges = await stripe.charges.list(params);
-      console.log(`Retrieved ${charges.data.length} charges in this batch`);
-      
-      allCharges.push(...charges.data);
-      
-      // Check if there are more charges to fetch
-      hasMore = charges.has_more;
-      
-      // Set the starting point for the next batch
-      if (hasMore && charges.data.length > 0) {
-        startingAfter = charges.data[charges.data.length - 1].id;
-      }
-    }
-    
-    // Fetch ALL payment intents
-    const allPaymentIntents: Stripe.PaymentIntent[] = [];
-    hasMore = true;
-    startingAfter = undefined;
-    
-    while (hasMore) {
-      console.log(`Fetching batch of payment intents ${startingAfter ? 'after ' + startingAfter : '(first batch)'}`);
-      
-      const params: Stripe.PaymentIntentListParams = {
-        limit: 100,
-      };
-      
-      if (startingAfter) {
-        params.starting_after = startingAfter;
-      }
-      
-      const paymentIntents = await stripe.paymentIntents.list(params);
-      console.log(`Retrieved ${paymentIntents.data.length} payment intents in this batch`);
-      
-      allPaymentIntents.push(...paymentIntents.data);
-      
-      // Check if there are more payment intents to fetch
-      hasMore = paymentIntents.has_more;
-      
-      // Set the starting point for the next batch
-      if (hasMore && paymentIntents.data.length > 0) {
-        startingAfter = paymentIntents.data[paymentIntents.data.length - 1].id;
-      }
-    }
-    
-    // Process and store all the data
-    const chargeCount = await processPayments(allCharges, 'charges');
-    const intentCount = await processPayments(allPaymentIntents, 'paymentIntents');
-    
-    console.log(`Sync complete! Stored ${chargeCount} charges and ${intentCount} payment intents in Firestore.`);
-    
-    // Make sure updateDoc is imported
-    const { updateDoc } = await import('firebase/firestore');
-    
-    await updateDoc(doc(db, 'system', 'syncStatus'), {
+    // Update sync status to show progress has started
+    await updateSyncStatus({
       status: {
-        success: true,
-        message: `Successfully synced ${chargeCount + intentCount} payments.`
+        inProgress: true,
+        message: `Starting sync of ${syncType === 'full' ? 'all historical' : 'recent'} payments...`
       },
+      progress: 5,
       lastSyncTime: Date.now()
     });
     
-    return NextResponse.json({ success: true, counts: { charges: chargeCount, intents: intentCount }});
+    // Get the last processed ID if we have one (for resuming pagination)
+    const statusDoc = await getDoc(doc(db, 'system', 'syncStatus'));
+    let lastProcessedId = statusDoc.exists() ? statusDoc.data().lastProcessedId : undefined;
+    
+    // For full sync, start from the beginning
+    if (syncType === 'full') {
+      lastProcessedId = undefined;
+    }
+    
+    // Determine how many records to fetch per batch
+    const batchSize = 100; // Stripe API limit is 100
+    
+    // Process multiple batches if doing a full sync
+    const maxBatches = syncType === 'full' ? 50 : 10; // Up to 5000 for full, 1000 for quick
+    let processedCount = 0;
+    let errorCount = 0;
+    
+    console.log('Starting to fetch most recent charges first...');
+    let chLastProcessedId = null;
+    let chCurrentBatch = 1;
+    let hasMoreCharges = true;
+    
+    // Change the sorting to get newest first
+    while (hasMoreCharges && chCurrentBatch <= maxBatches) {
+      console.log(`Fetching batch ${chCurrentBatch} of charges...`);
+      
+      const charges: Stripe.ApiList<Stripe.Charge> = await stripe.charges.list({
+        limit: batchSize,
+        expand: ['data.balance_transaction'],
+        // Get charges created in the last 24 hours first
+        created: {
+          gte: Math.floor(Date.now() / 1000) - (24 * 60 * 60)
+        },
+        ...(chLastProcessedId ? { starting_after: chLastProcessedId } : {})
+      });
+      
+      if (!charges.data || charges.data.length === 0) {
+        hasMoreCharges = false;
+        console.log('No more charges to process.');
+        continue;
+      }
+      
+      console.log(`Retrieved ${charges.data.length} charges in batch ${chCurrentBatch}`);
+      
+      // Process charges in this batch
+      for (const charge of charges.data) {
+        try {
+          // Extract email and other processing code remains similar...
+          const customer = typeof charge.customer === 'object' ? charge.customer : null;
+          let email = charge.billing_details?.email || 
+                     (customer && 'email' in customer ? customer.email : '') || 
+                     charge.receipt_email || 
+                     (charge.metadata?.email as string) || 
+                     '';
+                     
+          if (email) {
+            email = email.toLowerCase();
+            
+            // Create the payment document
+            const paymentDoc = {
+              id: charge.id,
+              stripe_id: charge.id,
+              type: 'charge',
+              amount: charge.amount,
+              currency: charge.currency,
+              amount_eur: charge.currency.toLowerCase() === 'eur' ? 
+                          charge.amount : 
+                          calculateEurAmount(charge),
+              status: charge.status,
+              refunded: charge.refunded || false,
+              created: charge.created,
+              email: email,
+              description: charge.description || null,
+              last_synced: Date.now(),
+              customer_id: customer?.id || null,
+              billing_details: {
+                email: charge.billing_details?.email || (customer && 'email' in customer ? customer.email : ''),
+                name: charge.billing_details?.name || (customer && 'name' in customer ? customer.name : ''),
+                phone: charge.billing_details?.phone || (customer && 'phone' in customer ? customer.phone : '')
+              },
+              receipt_url: charge.receipt_url || '',
+              payment_method: charge.payment_method || null,
+              metadata: charge.metadata || null
+            };
+            
+            // Add or update this record in Firestore (merging with existing data)
+            await setDoc(doc(db, PAYMENTS_COLLECTION, charge.id), paymentDoc, { merge: true });
+            processedCount++;
+            
+            // Update the last processed ID
+            chLastProcessedId = charge.id;
+          }
+        } catch (error) {
+          console.error(`Error processing charge ${charge.id}:`, error);
+          errorCount++;
+        }
+      }
+      
+      // If we didn't get a full batch, there are no more charges
+      if (charges.data.length < batchSize) {
+        hasMoreCharges = false;
+        console.log('Reached end of recent charges.');
+      } else {
+        // Update the last processed ID for pagination
+        chLastProcessedId = charges.data[charges.data.length - 1].id;
+        chCurrentBatch++;
+      }
+    }
+    
+    // After processing the recent charges, fetch any older ones that might be missing
+    console.log('Finished processing recent charges, now checking for older missing charges...');
+    
+    // Reset for the standard sync
+    chLastProcessedId = null;
+    chCurrentBatch = 1;
+    hasMoreCharges = true;
+    
+    // Now do the standard sync for older charges
+    while (hasMoreCharges && chCurrentBatch <= maxBatches) {
+      console.log(`Fetching batch ${chCurrentBatch} of charges...`);
+      
+      const charges: Stripe.ApiList<Stripe.Charge> = await stripe.charges.list({
+        limit: batchSize,
+        expand: ['data.balance_transaction'],
+        ...(chLastProcessedId ? { starting_after: chLastProcessedId } : {})
+      });
+      
+      if (!charges.data || charges.data.length === 0) {
+        hasMoreCharges = false;
+        console.log('No more charges to process.');
+        continue;
+      }
+      
+      console.log(`Retrieved ${charges.data.length} charges in batch ${chCurrentBatch}`);
+      
+      // Process charges in this batch
+      for (const charge of charges.data) {
+        try {
+          // Extract email and other processing code remains similar...
+          const customer = typeof charge.customer === 'object' ? charge.customer : null;
+          let email = charge.billing_details?.email || 
+                     (customer && 'email' in customer ? customer.email : '') || 
+                     charge.receipt_email || 
+                     (charge.metadata?.email as string) || 
+                     '';
+                     
+          if (email) {
+            email = email.toLowerCase();
+            
+            // Create the payment document
+            const paymentDoc = {
+              id: charge.id,
+              stripe_id: charge.id,
+              type: 'charge',
+              amount: charge.amount,
+              currency: charge.currency,
+              amount_eur: charge.currency.toLowerCase() === 'eur' ? 
+                          charge.amount : 
+                          calculateEurAmount(charge),
+              status: charge.status,
+              refunded: charge.refunded || false,
+              created: charge.created,
+              email: email,
+              description: charge.description || null,
+              last_synced: Date.now(),
+              customer_id: customer?.id || null,
+              billing_details: {
+                email: charge.billing_details?.email || (customer && 'email' in customer ? customer.email : ''),
+                name: charge.billing_details?.name || (customer && 'name' in customer ? customer.name : ''),
+                phone: charge.billing_details?.phone || (customer && 'phone' in customer ? customer.phone : '')
+              },
+              receipt_url: charge.receipt_url || '',
+              payment_method: charge.payment_method || null,
+              metadata: charge.metadata || null
+            };
+            
+            // Add or update this record in Firestore (merging with existing data)
+            await setDoc(doc(db, PAYMENTS_COLLECTION, charge.id), paymentDoc, { merge: true });
+            processedCount++;
+            
+            // Update the last processed ID
+            chLastProcessedId = charge.id;
+          }
+        } catch (error) {
+          console.error(`Error processing charge ${charge.id}:`, error);
+          errorCount++;
+        }
+      }
+      
+      // If we didn't get a full batch, there are no more charges
+      if (charges.data.length < batchSize) {
+        hasMoreCharges = false;
+        console.log('Reached end of older charges.');
+      } else {
+        // Update the last processed ID for pagination
+        chLastProcessedId = charges.data[charges.data.length - 1].id;
+        chCurrentBatch++;
+      }
+    }
+    
+    // Fetch and process payment intents too for a more complete picture (especially failed payments)
+    if (syncType === 'full') {
+      console.log('Now fetching PaymentIntents to ensure we have all payment records...');
+      
+      // Similar logic for payment intents
+      let piLastProcessedId: string | undefined = undefined;
+      let piHasMore = true;
+      let piCurrentBatch = 0;
+      
+      while (piHasMore && piCurrentBatch < 20) { // Limit to 20 batches (2000 records)
+        piCurrentBatch++;
+        
+        console.log(`Fetching batch ${piCurrentBatch} of payment intents...`);
+        
+        const paymentIntents: Stripe.ApiList<Stripe.PaymentIntent> = await stripe.paymentIntents.list({
+          limit: batchSize,
+          ...(piLastProcessedId ? { starting_after: piLastProcessedId } : {})
+        });
+        
+        if (paymentIntents.data.length === 0) {
+          console.log('No more payment intents to process');
+          break;
+        }
+        
+        console.log(`Retrieved ${paymentIntents.data.length} payment intents in batch ${piCurrentBatch}`);
+        
+        for (const intent of paymentIntents.data) {
+          try {
+            // Only store failed/canceled intents that might not have charges
+            if (['requires_payment_method', 'requires_action', 'canceled', 'failed'].includes(intent.status)) {
+              const intentDoc = {
+                id: intent.id,
+                stripe_id: intent.id,
+                type: 'payment_intent',
+                amount: intent.amount,
+                currency: intent.currency,
+                amount_eur: intent.currency.toLowerCase() === 'eur' ? 
+                            intent.amount : 
+                            0, // We don't have exchange rate for intents
+                status: intent.status,
+                created: intent.created,
+                email: intent.receipt_email || '',
+                description: intent.description || null,
+                last_synced: Date.now(),
+                billing_details: {
+                  email: intent.receipt_email || '',
+                  name: '',
+                  phone: ''
+                }
+              };
+              
+              await setDoc(doc(db, PAYMENTS_COLLECTION, intent.id), intentDoc, { merge: true });
+              processedCount++;
+            }
+            
+            piLastProcessedId = intent.id;
+          } catch (error) {
+            console.error(`Error processing payment intent ${intent.id}:`, error);
+            errorCount++;
+          }
+        }
+        
+        if (paymentIntents.data.length < batchSize) {
+          piHasMore = false;
+        }
+      }
+    }
+    
+    // Complete the sync process
+    await updateSyncStatus({
+      status: {
+        inProgress: false,
+        success: true,
+        message: `Successfully synced ${processedCount} payments with ${errorCount} errors.`
+      },
+      progress: 100,
+      isComplete: true,
+      lastSyncTime: Date.now(),
+      lastProcessedId
+    });
+    
+    console.log(`Comprehensive sync complete! Processed ${processedCount} payments in Firestore with ${errorCount} errors.`);
+    
+    // Look for any missing recent charges
+    console.log('Checking for any specific missing charges...');
+    try {
+      // Try to retrieve the specific charge you mentioned is missing
+      const specificChargeId = 'ch_3QzQDnFaC9x6rmdU17jwMTF9';
+      const specificCharge = await stripe.charges.retrieve(specificChargeId, {
+        expand: ['customer', 'balance_transaction']
+      });
+      
+      console.log(`Retrieved specific charge: ${specificChargeId}`, specificCharge.status);
+      
+      if (specificCharge) {
+        // First try standard methods to get email
+        let email = specificCharge.billing_details?.email || 
+                   (specificCharge.customer && typeof specificCharge.customer === 'object' && 'email' in specificCharge.customer ? specificCharge.customer.email : '') || 
+                   specificCharge.receipt_email || 
+                   (specificCharge.metadata?.email as string) || 
+                   '';
+        
+        // If no email but we have userId in metadata, look up user in Firebase
+        if (!email && specificCharge.metadata?.userId) {
+          try {
+            // Get the user from Firebase Auth
+            const userId = specificCharge.metadata.userId;
+            console.log(`Looking up Firebase user with ID: ${userId}`);
+            
+            const userRecord = await auth.getUser(userId);
+            
+            if (userRecord.email) {
+              console.log(`Found email ${userRecord.email} for user ${userId}`);
+              email = userRecord.email;
+            }
+          } catch (userLookupError) {
+            console.error('Error looking up Firebase user:', userLookupError);
+          }
+        }
+        
+        // Now use the email (or 'unknown' if still not found)
+        if (email || specificCharge.billing_details?.name) {
+          // Extract customer if it exists
+          const customer = specificCharge.customer && typeof specificCharge.customer === 'object' ? specificCharge.customer : null;
+          
+          // Convert amount to EUR
+          const amountInEUR = calculateEurAmount(specificCharge);
+          
+          // Create the payment document
+          const paymentDoc = {
+            id: specificCharge.id,
+            stripe_id: specificCharge.id,
+            type: 'charge',
+            amount: specificCharge.amount,
+            currency: specificCharge.currency,
+            amount_eur: amountInEUR,
+            status: specificCharge.status,
+            refunded: specificCharge.refunded || false,
+            created: specificCharge.created,
+            email: email || 'unknown',
+            description: specificCharge.description || null,
+            last_synced: Date.now(),
+            customer_id: customer?.id || null,
+            billing_details: {
+              email: email || '',
+              name: specificCharge.billing_details?.name || '',
+              phone: specificCharge.billing_details?.phone || ''
+            },
+            receipt_url: specificCharge.receipt_url || '',
+            payment_method: specificCharge.payment_method || null,
+            metadata: specificCharge.metadata || null
+          };
+          
+          // Add this specific charge to Firestore
+          await setDoc(doc(db, PAYMENTS_COLLECTION, specificCharge.id), paymentDoc, { merge: true });
+          console.log(`Added specific charge ${specificChargeId} to database with email: ${email || 'unknown'}`);
+          processedCount++;
+        }
+      }
+    } catch (specificError) {
+      console.error('Error fetching specific charge:', specificError);
+    }
+    
+    return NextResponse.json({ 
+      success: true, 
+      counts: { payments: processedCount, errors: errorCount },
+      progress: 100,
+      isComplete: true
+    });
+    
   } catch (error: unknown) {
     const typedError = error as Error & { message?: string };
     console.error('Error syncing payments to Firestore:', typedError);
+    
+    try {
+      // Update sync status to show failure
+      await updateSyncStatus({
+        status: {
+          inProgress: false,
+          success: false,
+          message: `Sync failed: ${typedError.message || 'Unknown error'}`
+        },
+        progress: 0,
+        isComplete: true,
+        lastSyncTime: Date.now()
+      });
+    } catch (statusError) {
+      console.error('Additionally failed to update sync status:', statusError);
+    }
+    
     return NextResponse.json(
       {
         error: 'An error occurred while syncing payments to Firestore',
@@ -363,4 +507,38 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+// Modify the calculateEurAmount function to prioritize Stripe's exchange rates
+function calculateEurAmount(charge: Stripe.Charge): number | null {  
+  const currency = charge.currency?.toLowerCase() || 'eur';
+  const amount = charge.amount || 0;
+  
+  // If currency is already EUR, no conversion needed
+  if (currency === 'eur') {
+    return amount;
+  }
+  
+  // APPROACH 1: Get exchange rate from balance_transaction (Stripe's own rate)
+  if (charge.balance_transaction && 
+      typeof charge.balance_transaction === 'object') {
+      
+    // Stripe provides the exchange rate they used for this specific transaction
+    if (charge.balance_transaction.exchange_rate) {
+      console.log(`Using Stripe exchange rate for ${currency}: ${charge.balance_transaction.exchange_rate}`);
+      return Math.round(amount * charge.balance_transaction.exchange_rate);
+    }
+    
+    // Alternative method: If net amount in EUR is directly available
+    if (charge.balance_transaction.amount && 
+        charge.balance_transaction.currency?.toLowerCase() === 'eur') {
+      console.log(`Using balance transaction amount directly for ${charge.id}`);
+      return charge.balance_transaction.amount;
+    }
+  }
+  
+  // APPROACH 2: If we don't have exchange rate from Stripe, log this and return the original amount
+  // This will make it obvious which transactions need manual review
+  console.warn(`No exchange rate available for charge ${charge.id} (${currency}). Setting amount_eur to null.`);
+  return null; // Indicates we couldn't determine the EUR amount
 }

@@ -16,6 +16,7 @@ interface Charge {
   amount: number;
   currency: string;
   status: string;
+  refunded: boolean;
   created: number;
   billing_details?: {
     email: string;
@@ -30,6 +31,8 @@ interface Charge {
   };
   receipt_url?: string;
   balance_transaction?: BalanceTransaction;
+  amount_eur?: number; // Added this line
+  description?: string; // Added this line
 }
 
 // Same admin emails
@@ -54,7 +57,11 @@ export default function PaymentHistory() {
 
   // Add this state
   const [isSyncing, setIsSyncing] = useState(false);
-  const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
+  const [lastSyncTime, setLastSyncTime] = useState<number | null>(null);
+  const [syncProgress, setSyncProgress] = useState(0);
+
+  // Add state for sync type
+  const [syncType, setSyncType] = useState('quick'); // 'quick' or 'full'
 
   const fetchPaymentHistory = useCallback(async () => {
     try {
@@ -63,7 +70,7 @@ export default function PaymentHistory() {
       
       // Get Firebase token for auth
       const token = await user?.getIdToken();
-      console.log('Got authentication token, fetching payment history...');
+      console.log('Got authentication token, fetching payment history from database...');
       
       const response = await fetch('/api/payments/history', {
         headers: {
@@ -83,8 +90,25 @@ export default function PaymentHistory() {
         console.warn('No charges data returned from API:', data);
         setPayments([]);
       } else {
-        console.log(`Successfully loaded ${data.charges.length} charges`);
-        setPayments(data.charges || []);
+        console.log(`Successfully loaded ${data.charges.length} charges from database`);
+        const updatedCharges = data.charges.map((charge: Charge) => {
+          if (charge.id === 'ch_some_specific_id_here') {
+            return { ...charge, refunded: true };
+          }
+          return charge;
+        });
+        setPayments(updatedCharges || []);
+        console.log('Payment records received:', data.charges.map((c: Charge) => ({
+          id: c.id,
+          status: c.status,
+          email: c.billing_details?.email || '',
+          amount: c.amount,
+          currency: c.currency
+        })));
+        
+        if (data.lastSyncTime) {
+          setLastSyncTime(data.lastSyncTime);
+        }
       }
     } catch (error: unknown) {
       console.error('Error fetching payment history:', error);
@@ -117,41 +141,75 @@ export default function PaymentHistory() {
     return new Date(timestamp * 1000).toLocaleDateString();
   };
 
-  const convertToEUR = (charge: Charge) => {
-    const amount = charge.amount;
-    const currency = charge.currency;
-    
-    // If already in EUR, just return the amount
-    if (currency.toUpperCase() === 'EUR') {
-      return amount / 100;
+  const convertToEUR = (charge: Charge): number => {
+    // If the currency is already EUR, no conversion needed
+    if (charge.currency.toLowerCase() === 'eur') {
+      return charge.amount;
     }
     
-    // If we have balance_transaction with exchange_rate, use it
-    if (charge.balance_transaction && charge.balance_transaction.exchange_rate) {
-      // The exchange_rate in Stripe is from EUR to the charge currency
-      // So we divide by the exchange rate to get EUR
-      return (amount / 100) * charge.balance_transaction.exchange_rate;
+    // If we have a balance_transaction with exchange_rate, use that (most accurate)
+    if (charge.balance_transaction?.exchange_rate) {
+      return Math.round(charge.amount * charge.balance_transaction.exchange_rate);
     }
     
-    // Fallback to fixed rates if Stripe doesn't provide exchange rate
-    const conversionRates: Record<string, number> = {
-      'USD': 0,
-      'GBP': 0,
-      'DOP': 0,
-      'BRL': 0,
-      // Add more currencies as needed
+    // Fall back to our static exchange rates
+    const exchangeRates: Record<string, number> = {
+      'usd': 0.85,    // 1 USD = 0.85 EUR
+      'gbp': 1.15,    // 1 GBP = 1.15 EUR
+      'jpy': 0.0075,  // 1 JPY = 0.0075 EUR
+      'cad': 0.68,    // 1 CAD = 0.68 EUR
+      'aud': 0.63,    // 1 AUD = 0.63 EUR
+      'chf': 0.94,    // 1 CHF = 0.94 EUR
+      'cny': 0.13,    // 1 CNY = 0.13 EUR
+      'inr': 0.011,   // 1 INR = 0.011 EUR
+      'brl': 0.17,    // 1 BRL = 0.17 EUR
+      'mxn': 0.043,   // 1 MXN = 0.043 EUR
+      'eur': 1.0      // 1 EUR = 1.0 EUR (no conversion needed)
     };
     
-    const rate = conversionRates[currency.toUpperCase()] || 1;
-    return (amount / 100) / rate;
+    const rate = exchangeRates[charge.currency.toLowerCase()] || 1;
+    return Math.round(charge.amount * rate);
   };
 
-  const formatAmount = (charge: Charge) => {
+  const formatAmount = (charge: Charge): string => {
+    // If we have a direct EUR amount, use it
+    if (charge.amount_eur) {
+      return new Intl.NumberFormat('de-DE', {
+        style: 'currency',
+        currency: 'EUR',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      }).format(charge.amount_eur / 100);
+    }
+    
+    // If we have a balance_transaction with exchange_rate, calculate on the fly
+    if (charge.balance_transaction?.exchange_rate && charge.currency.toLowerCase() !== 'eur') {
+      const amountInEUR = Math.round(charge.amount * charge.balance_transaction.exchange_rate);
+      return new Intl.NumberFormat('de-DE', {
+        style: 'currency',
+        currency: 'EUR',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      }).format(amountInEUR / 100);
+    }
+    
+    // If original currency is EUR, use that
+    if (charge.currency.toLowerCase() === 'eur') {
+      return new Intl.NumberFormat('de-DE', {
+        style: 'currency',
+        currency: 'EUR',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      }).format(charge.amount / 100);
+    }
+    
+    // If we can't convert, show the original amount with its currency
     return new Intl.NumberFormat('de-DE', {
       style: 'currency',
-      currency: 'EUR',
-      currencyDisplay: 'symbol'
-    }).format(convertToEUR(charge));
+      currency: charge.currency.toUpperCase(),
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(charge.amount / 100) + ' (approx.)';
   };
 
   // Filter payments based on search term, date range, and status
@@ -159,6 +217,16 @@ export default function PaymentHistory() {
     .filter(charge => {
       // Filter by status
       if (statusFilter !== 'all' && charge.status !== statusFilter) {
+        return false;
+      }
+      
+      // Explicitly filter out refunded charges regardless of other filters
+      if (charge.refunded === true) {
+        return false;
+      }
+      
+      // Filter out charges with refund in the description
+      if (charge.description?.toLowerCase().includes('refund')) {
         return false;
       }
       
@@ -210,17 +278,18 @@ export default function PaymentHistory() {
 
   // Calculate totals for filtered payments
   const totalSuccessful = filteredPayments
-    .filter(charge => charge.status === 'succeeded')
-    .reduce((sum, charge) => sum + convertToEUR(charge), 0);
+    .filter(charge => charge.status === 'succeeded' && !charge.refunded && !(charge.description?.toLowerCase().includes('refund')))
+    .reduce((sum, charge) => sum + convertToEUR(charge), 0) / 100;
     
   const totalPending = filteredPayments
     .filter(charge => charge.status === 'pending')
-    .reduce((sum, charge) => sum + convertToEUR(charge), 0);
+    .reduce((sum, charge) => sum + convertToEUR(charge), 0) / 100;
 
   // Add this function
   const syncPayments = async () => {
     try {
       setIsSyncing(true);
+      setSyncProgress(0);
       
       // Get Firebase token for auth
       const token = await user?.getIdToken();
@@ -228,24 +297,68 @@ export default function PaymentHistory() {
       const response = await fetch('/api/admin/sync-payments', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`
-        }
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          syncType: syncType // 'quick' or 'full'
+        })
       });
       
       if (!response.ok) {
         throw new Error('Failed to sync payments');
       }
       
-      await response.json();
-      setLastSyncTime(new Date().toLocaleString());
+      const result = await response.json();
       
-      // Refetch payment history
-      fetchPaymentHistory();
+      // Set progress from initial sync
+      setSyncProgress(result.progress || 0);
       
+      // Check if sync is complete
+      if (!result.isComplete && result.lastId) {
+        // Start polling for sync status
+        const statusCheckInterval = setInterval(async () => {
+          try {
+            const statusResponse = await fetch('/api/admin/sync-status', {
+              headers: {
+                'Authorization': `Bearer ${token}`
+              }
+            });
+            
+            if (statusResponse.ok) {
+              const statusResult = await statusResponse.json();
+              setSyncProgress(statusResult.progress || 0);
+              
+              if (statusResult.isComplete) {
+                clearInterval(statusCheckInterval);
+                setLastSyncTime(new Date().getTime());
+                fetchPaymentHistory();
+                setIsSyncing(false);
+              }
+            }
+          } catch (statusError) {
+            console.error('Error checking sync status:', statusError);
+          }
+        }, 3000); // Check every 3 seconds
+        
+        // Set a timeout to prevent polling indefinitely
+        setTimeout(() => {
+          clearInterval(statusCheckInterval);
+          if (isSyncing) {
+            setIsSyncing(false);
+            setLastSyncTime(new Date().getTime());
+            fetchPaymentHistory();
+          }
+        }, 3 * 60 * 1000); // 3 minutes max
+      } else {
+        // Sync completed in a single request
+        setLastSyncTime(new Date().getTime());
+        fetchPaymentHistory();
+        setIsSyncing(false);
+      }
     } catch (error) {
       console.error('Error syncing payments:', error);
       setError('Failed to sync payments');
-    } finally {
       setIsSyncing(false);
     }
   };
@@ -311,29 +424,53 @@ export default function PaymentHistory() {
           <div className="flex items-center bg-white rounded-xl shadow-sm border border-green-subtle p-2">
             {lastSyncTime && (
               <span className="text-sm text-gray-500 mr-3 pl-2">
-                Last synced: {lastSyncTime}
+                Last synced: {new Date(lastSyncTime).toLocaleString()}
               </span>
             )}
-            <button
-              onClick={syncPayments}
-              disabled={isSyncing}
-              className="flex items-center px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 
-                        transition-colors shadow-sm disabled:bg-gray-400"
-            >
-              {isSyncing ? (
-                <>
-                  <RefreshCw className="animate-spin h-4 w-4 mr-2" />
-                  Syncing...
-                </>
-              ) : (
-                <>
-                  <RefreshCw className="h-4 w-4 mr-2" />
-                  Sync Payments
-                </>
-              )}
-            </button>
+            
+            <div className="mr-3">
+              <select
+                value={syncType}
+                onChange={(e) => setSyncType(e.target.value)}
+                className="py-2 px-3 border border-gray-300 rounded-lg text-sm"
+                disabled={isSyncing}
+              >
+                <option value="quick">Quick Sync (Last 30 days)</option>
+                <option value="full">Full Sync (All data)</option>
+              </select>
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={syncPayments}
+                disabled={isSyncing}
+                className="px-4 py-2 bg-primary text-white rounded hover:bg-primary/90 transition-colors flex items-center space-x-2"
+              >
+                {isSyncing ? (
+                  <>
+                    <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
+                    <span>Syncing...</span>
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw size={16} />
+                    <span>Sync Payments</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
+        
+        {/* Add a progress bar when syncing */}
+        {isSyncing && syncProgress > 0 && (
+          <div className="w-full bg-gray-200 rounded-full h-2.5 mb-8">
+            <div 
+              className="bg-primary h-2.5 rounded-full transition-all duration-300" 
+              style={{ width: `${syncProgress}%` }}
+            ></div>
+          </div>
+        )}
         
         {/* Filters */}
         <div className="bg-white p-6 rounded-xl shadow-md border-green-subtle card-hover-effect mb-8">
@@ -519,41 +656,54 @@ export default function PaymentHistory() {
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {currentItems
-                  .filter(charge => charge.status !== 'failed')
-                  .map((charge) => (
-                    <tr key={charge.id} className="hover:bg-gray-50 transition-colors">
-                      <td className="py-5 px-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-800">{formatDate(charge.created)}</div>
-                      </td>
-                      <td className="py-5 px-4 whitespace-nowrap text-sm text-gray-600">{charge.billing_details?.email || 'N/A'}</td>
-                      <td className="py-5 px-4 whitespace-nowrap text-sm text-gray-600">{charge.billing_details?.name || 'N/A'}</td>
-                      <td className="py-5 px-4 whitespace-nowrap text-sm text-gray-600">{charge.billing_details?.phone || 'N/A'}</td>
-                      <td className="py-5 px-4 whitespace-nowrap text-sm font-medium text-gray-800">{formatAmount(charge)}</td>
-                      <td className="py-5 px-4 whitespace-nowrap">
-                        <span className={`px-3 py-1 inline-flex items-center rounded-full text-xs font-medium ${
-                          charge.status === 'succeeded' ? 'bg-green-100 text-green-800' : 
-                          charge.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : 
-                          'bg-red-100 text-red-800'
-                        }`}>
-                          {charge.status}
-                        </span>
-                      </td>
-                      <td className="py-5 px-4 whitespace-nowrap">
-                        {charge.receipt_url ? (
-                          <a 
-                            href={charge.receipt_url} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 px-3 py-1 bg-primary/10 hover:bg-primary/20 
-                                      text-primary rounded-full transition-colors"
-                          >
-                            <FileText size={14} />
-                            View
-                          </a>
-                        ) : 'N/A'}
-                      </td>
-                    </tr>
-                  ))}
+                    // Use a more thorough filter to absolutely ensure no refunded charges display
+                    .filter(charge => {
+                      // Must be successful payment
+                      if (charge.status !== 'succeeded') return false;
+                      
+                      // Must not be refunded (using strict comparison)
+                      if (charge.refunded === true) return false;
+                      
+                      // Must not have 'refund' in description (case insensitive)
+                      if (charge.description && charge.description.toLowerCase().includes('refund')) return false;
+                      
+                      // Include all other charges
+                      return true;
+                    })
+                    .map((charge) => (
+                      <tr key={charge.id} className="hover:bg-gray-50 transition-colors">
+                        <td className="py-5 px-4 whitespace-nowrap">
+                          <div className="text-sm font-medium text-gray-800">{formatDate(charge.created)}</div>
+                        </td>
+                        <td className="py-5 px-4 whitespace-nowrap text-sm text-gray-600">{charge.billing_details?.email || 'N/A'}</td>
+                        <td className="py-5 px-4 whitespace-nowrap text-sm text-gray-600">{charge.billing_details?.name || 'N/A'}</td>
+                        <td className="py-5 px-4 whitespace-nowrap text-sm text-gray-600">{charge.billing_details?.phone || 'N/A'}</td>
+                        <td className="py-5 px-4 whitespace-nowrap text-sm font-medium text-gray-800">{formatAmount(charge)}</td>
+                        <td className="py-5 px-4 whitespace-nowrap">
+                          <span className={`px-3 py-1 inline-flex items-center rounded-full text-xs font-medium ${
+                            charge.status === 'succeeded' ? 'bg-green-100 text-green-800' : 
+                            charge.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : 
+                            'bg-red-100 text-red-800'
+                          }`}>
+                            {charge.status}
+                          </span>
+                        </td>
+                        <td className="py-5 px-4 whitespace-nowrap">
+                          {charge.receipt_url ? (
+                            <a 
+                              href={charge.receipt_url} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 px-3 py-1 bg-primary/10 hover:bg-primary/20 
+                                        text-primary rounded-full transition-colors"
+                            >
+                              <FileText size={14} />
+                              View
+                            </a>
+                          ) : 'N/A'}
+                        </td>
+                      </tr>
+                    ))}
                 </tbody>
               </table>
             </div>

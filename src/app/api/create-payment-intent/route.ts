@@ -1,55 +1,81 @@
-import { NextResponse } from 'next/server';
-import { stripe } from '@/lib/stripe';
+import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/firebase-admin';
-import { cookies } from 'next/headers';
+import Stripe from 'stripe';
 
-export async function POST(req: Request) {
+// Initialize Stripe with your secret key
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
+  apiVersion: '2025-02-24.acacia', // Use the latest API version
+});
+
+export async function POST(request: NextRequest) {
   try {
-    // Get the session cookie
-    const cookieStore = await cookies();
-    const sessionCookie = cookieStore.get('firebaseAuth')?.value;
+    // Get token from request headers
+    let token: string | null = null;
+    const authHeader = request.headers.get('Authorization');
     
-    if (!sessionCookie) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (authHeader?.startsWith('Bearer ')) {
+      token = authHeader.substring(7);
     }
-    
-    // Verify the session cookie
-    let decodedClaims;
+
+    // If no token is provided, return unauthorized
+    if (!token) {
+      console.error('No auth token provided for payment intent creation');
+      return NextResponse.json({ error: 'Unauthorized - No token provided' }, { status: 401 });
+    }
+
+    // Verify the token
     try {
-      decodedClaims = await auth.verifySessionCookie(sessionCookie); // Use auth directly
-    } catch (error) {
-      console.error('Error verifying session cookie:', error);
-      return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
+      const user = await auth.verifyIdToken(token);
+      console.log(`Authenticated user ${user.email} for payment intent creation`);
+      
+      // Parse request body
+      const { amount, currency, metadata, receipt_email } = await request.json();
+      
+      if (!amount || !currency) {
+        return NextResponse.json(
+          { error: 'Bad request - amount and currency are required' },
+          { status: 400 }
+        );
+      }
+
+      // Create a payment intent
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount,
+        currency,
+        metadata: {
+          ...metadata,
+          // Ensure userId is included
+          userId: user.uid,
+          // Ensure email is captured even if not in metadata
+          email: receipt_email || user.email || metadata?.email || '',
+        },
+        receipt_email: receipt_email || user.email || metadata?.email || '',
+        automatic_payment_methods: {
+          enabled: true,
+        },
+      });
+
+      console.log(`Created payment intent ${paymentIntent.id} for ${amount} ${currency}`);
+
+      return NextResponse.json({ 
+        clientSecret: paymentIntent.client_secret,
+        paymentIntentId: paymentIntent.id
+      });
+    } catch (authError) {
+      console.error('Firebase auth error:', authError);
+      return NextResponse.json({ error: 'Unauthorized - Invalid token' }, { status: 401 });
     }
-    
-    const { amount, currency = 'usd', metadata = {} } = await req.json();
-    
-    // Validate the amount
-    if (!amount || amount <= 0) {
-      return NextResponse.json(
-        { error: 'Invalid amount' },
-        { status: 400 }
-      );
-    }
-    
-    // Create a PaymentIntent with the order amount and currency
-    const paymentIntent = await stripe?.paymentIntents.create({
-      amount: Math.round(amount * 100), // Convert to cents
-      currency,
-      metadata: {
-        userId: decodedClaims.uid,
-        ...metadata
-      },
-    });
-    
-    return NextResponse.json({ 
-      clientSecret: paymentIntent?.client_secret 
-    });
-    
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error creating payment intent:', error);
+    
+    // Type assertion to access the message property safely
+    const typedError = error as Error & { message?: string };
+    
     return NextResponse.json(
-      { error: 'Internal server error' },
+      {
+        error: 'Failed to create payment intent',
+        details: typedError.message || 'Unknown error'
+      },
       { status: 500 }
     );
   }
