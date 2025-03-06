@@ -290,12 +290,7 @@ export default function ProfilePage() {
       {/* Additional Info Section */}
       <section className="py-12 bg-green-pattern-light">
         <div className="max-w-4xl mx-auto px-4 text-center">
-          <h2 className="text-2xl font-bold mb-6 text-gradient-green">Thank You for Your Support</h2>
-          <p className="text-gray-600 mb-8">
-            Your contributions help fuel our mission for Greenhouse 2025. 
-            Every payment brings us one step closer to our goals.
-          </p>
-          
+          <h2 className="text-2xl font-bold mb-6 text-gradient-green">Be ready for Revival</h2>          
           <div className="flex justify-center">
             <button
               onClick={() => router.push('/donate')}

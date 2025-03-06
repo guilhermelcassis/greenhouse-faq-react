@@ -56,12 +56,9 @@ export default function PaymentHistory() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
 
   // Add this state
-  const [isSyncing, setIsSyncing] = useState(false);
+  const [isSyncing] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState<number | null>(null);
-  const [syncProgress, setSyncProgress] = useState(0);
-
-  // Add state for sync type
-  const [syncType, setSyncType] = useState('quick'); // 'quick' or 'full'
+  const [syncProgress] = useState(0);
 
   const fetchPaymentHistory = useCallback(async () => {
     try {
@@ -285,81 +282,44 @@ export default function PaymentHistory() {
     .filter(charge => charge.status === 'pending')
     .reduce((sum, charge) => sum + convertToEUR(charge), 0) / 100;
 
-  // Add this function
-  const syncPayments = async () => {
+  
+  // Update the quickFetchRecentPayments function to use the existing endpoint
+  const quickFetchRecentPayments = async () => {
     try {
-      setIsSyncing(true);
-      setSyncProgress(0);
+      setIsLoading(true);
+      setError(null);
       
       // Get Firebase token for auth
       const token = await user?.getIdToken();
       
-      const response = await fetch('/api/admin/sync-payments', {
-        method: 'POST',
+      // Use existing history endpoint but with a limit parameter
+      const response = await fetch('/api/payments/history?limit=50&skipSync=true', {
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          syncType: syncType // 'quick' or 'full'
-        })
+          'Authorization': `Bearer ${token}`
+        }
       });
       
       if (!response.ok) {
-        throw new Error('Failed to sync payments');
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Quick fetch API error:', errorData);
+        throw new Error(errorData.details || 'Failed to fetch recent payments');
       }
       
-      const result = await response.json();
+      const data = await response.json();
       
-      // Set progress from initial sync
-      setSyncProgress(result.progress || 0);
-      
-      // Check if sync is complete
-      if (!result.isComplete && result.lastId) {
-        // Start polling for sync status
-        const statusCheckInterval = setInterval(async () => {
-          try {
-            const statusResponse = await fetch('/api/admin/sync-status', {
-              headers: {
-                'Authorization': `Bearer ${token}`
-              }
-            });
-            
-            if (statusResponse.ok) {
-              const statusResult = await statusResponse.json();
-              setSyncProgress(statusResult.progress || 0);
-              
-              if (statusResult.isComplete) {
-                clearInterval(statusCheckInterval);
-                setLastSyncTime(new Date().getTime());
-                fetchPaymentHistory();
-                setIsSyncing(false);
-              }
-            }
-          } catch (statusError) {
-            console.error('Error checking sync status:', statusError);
-          }
-        }, 3000); // Check every 3 seconds
-        
-        // Set a timeout to prevent polling indefinitely
-        setTimeout(() => {
-          clearInterval(statusCheckInterval);
-          if (isSyncing) {
-            setIsSyncing(false);
-            setLastSyncTime(new Date().getTime());
-            fetchPaymentHistory();
-          }
-        }, 3 * 60 * 1000); // 3 minutes max
+      if (!data.charges) {
+        console.warn('No recent charges returned:', data);
+        setPayments([]);
       } else {
-        // Sync completed in a single request
+        console.log(`Successfully loaded ${data.charges.length} recent charges`);
+        setPayments(data.charges || []);
         setLastSyncTime(new Date().getTime());
-        fetchPaymentHistory();
-        setIsSyncing(false);
       }
     } catch (error) {
-      console.error('Error syncing payments:', error);
-      setError('Failed to sync payments');
-      setIsSyncing(false);
+      console.error('Error fetching recent payments:', error);
+      setError(error instanceof Error ? error.message : 'Failed to load recent payments');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -427,29 +387,17 @@ export default function PaymentHistory() {
                 Last synced: {new Date(lastSyncTime).toLocaleString()}
               </span>
             )}
-            
-            <div className="mr-3">
-              <select
-                value={syncType}
-                onChange={(e) => setSyncType(e.target.value)}
-                className="py-2 px-3 border border-gray-300 rounded-lg text-sm"
-                disabled={isSyncing}
-              >
-                <option value="quick">Quick Sync (Last 30 days)</option>
-                <option value="full">Full Sync (All data)</option>
-              </select>
-            </div>
-            
+
             <div className="flex items-center space-x-2">
               <button
-                onClick={syncPayments}
-                disabled={isSyncing}
+                onClick={quickFetchRecentPayments}
+                disabled={isLoading}
                 className="px-4 py-2 bg-primary text-white rounded hover:bg-primary/90 transition-colors flex items-center space-x-2"
               >
-                {isSyncing ? (
+                {isLoading ? (
                   <>
                     <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
-                    <span>Syncing...</span>
+                    <span>Loading...</span>
                   </>
                 ) : (
                   <>

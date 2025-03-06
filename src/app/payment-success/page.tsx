@@ -4,18 +4,51 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { CheckCircle } from 'lucide-react';
+import { useAuth } from '@/lib/auth';
 
 export default function PaymentSuccessPage() {
   const router = useRouter();
+  const { user } = useAuth();
+  
+  // Function to sync payments data silently in the background
+  const syncPaymentsInBackground = async () => {
+    if (!user) return;
+    
+    try {
+      // Get Firebase token for auth
+      const token = await user.getIdToken();
+      
+      // Fetch recent payments from the API
+      const response = await fetch('/api/payments/history?limit=50&skipSync=true', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (!response.ok) {
+        console.error('Background sync failed:', await response.text());
+        return;
+      }
+      
+      console.log('Payment data synced successfully in background');
+    } catch (error) {
+      console.error('Error in background payment sync:', error);
+    }
+  };
   
   useEffect(() => {
+    // Sync payments silently when the component mounts
+    if (user) {
+      syncPaymentsInBackground();
+    }
+    
     // Redirect to profile after 5 seconds
     const timer = setTimeout(() => {
       router.push('/profile');
     }, 5000);
     
     return () => clearTimeout(timer);
-  }, [router]);
+  }, [user, router]);
   
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-4">
