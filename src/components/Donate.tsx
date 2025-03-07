@@ -63,6 +63,9 @@ export default function DonateComponent({ user, userEmail, userId }: DonateProps
       // Get the auth token from the user object
       const token = await user.getIdToken();
       
+      // Use Math.round to ensure we get a clean integer value in cents
+      const amountInCents = Math.round(amount * 100);
+      
       // Now include the token in the request headers
       const response = await fetch('/api/create-payment-intent', {
         method: 'POST',
@@ -71,13 +74,13 @@ export default function DonateComponent({ user, userEmail, userId }: DonateProps
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          amount: amount * 100, // convert to cents
+          amount: amountInCents, // use the rounded value
           currency: 'eur',
           // Include both userId and email in metadata
           metadata: {
             userId: userId,
             email: userEmail,
-            items: JSON.stringify([{ name: `€${amount} Donation`, amount: amount * 100, quantity: 1 }]),
+            items: JSON.stringify([{ name: `€${amount} Donation`, amount: amountInCents, quantity: 1 }]),
           },
           // Set receipt_email explicitly
           receipt_email: userEmail,
@@ -201,7 +204,15 @@ export default function DonateComponent({ user, userEmail, userId }: DonateProps
         </div>
       ) : (
         <div className="p-8">
-          <Elements stripe={stripePromise} options={{ clientSecret }}>
+          <Elements 
+            stripe={stripePromise} 
+            options={{ 
+              clientSecret,
+              appearance: {
+                theme: 'stripe',
+              }
+            }}
+          >
             <CheckoutFormContent totalAmount={totalAmount} />
           </Elements>
         </div>
@@ -261,7 +272,14 @@ function CheckoutFormContent({ totalAmount }: { totalAmount: number }) {
       <div className="mb-6">
         <h3 className="text-lg font-medium mb-3">Payment Details</h3>
         <div className="border rounded-lg p-4 hover:border-primary transition-colors">
-          <PaymentElement />
+          <PaymentElement 
+            options={{
+              wallets: {
+                applePay: 'auto',
+                googlePay: 'auto'
+              }
+            }} 
+          />
         </div>
       </div>
 

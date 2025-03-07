@@ -38,9 +38,12 @@ export async function POST(request: NextRequest) {
         );
       }
 
+      // Fix: Ensure amount is an integer by rounding it
+      const roundedAmount = Math.round(amount);
+
       // Create a payment intent
       const paymentIntent = await stripe.paymentIntents.create({
-        amount,
+        amount: roundedAmount, // Use the rounded integer instead of raw amount
         currency,
         metadata: {
           ...metadata,
