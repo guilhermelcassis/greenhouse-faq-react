@@ -48,7 +48,7 @@ const testimonials = [
   {
     name: "Eddie Nunes",
     role: "Ministry Leader",
-    text: "The teachings and community at Greenhouse are unparallequeed. I highly recommend it!",
+    text: "The teachings and community at Greenhouse are unparalelled. I highly recommend it!",
     image: "/images/avatar2.jpg"
   },
   {
