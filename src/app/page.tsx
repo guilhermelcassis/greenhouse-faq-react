@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from 'react';
+import { Footer } from '@/components/Footer';
 
 export default function Home() {
   const [question, setQuestion] = useState('');
@@ -60,25 +61,17 @@ export default function Home() {
         </div>
         
         <div className="relative z-10 text-center space-y-6 px-4 max-w-4xl mx-auto animate-fade-in">
-          <div className="bg-black/20 p-6 backdrop-blur-sm rounded-xl">
-            <h1 className="text-5xl md:text-6xl font-bold tracking-tight text-white drop-shadow-lg shadow-black mb-4" 
-                style={{ 
-                  textShadow: "0 4px 8px rgba(0,0,0,0.6), 0 2px 4px rgba(0,0,0,0.8)" 
-                }}>
+          <div className="">
+            <h1 className="text-5xl md:text-6xl font-bold tracking-tight text-white drop-shadow-lg shadow-black mb-4">
               Greenhouse 2025 Q&A
             </h1>
-            <p className="text-xl text-white max-w-2xl mx-auto font-medium drop-shadow-md mb-6" 
-                style={{ 
-                  textShadow: "0 4px 8px rgba(0,0,0,0.6), 0 2px 4px rgba(0,0,0,0.8)" 
-                }}>
+            <p className="text-xl text-white max-w-2xl mx-auto font-medium drop-shadow-md mb-6">
               Ask your questions about Dunamis Greenhouse and get instant answers from our AI assistant.
             </p>
           </div>
         </div>
       </section>
 
-      {/* Divider */}
-      <div className="h-4 bg-gradient-to-r from-primary/20 via-primary/40 to-primary/20"></div>
 
       {/* Main Content */}
       <section className="py-20 px-4 bg-white relative overflow-hidden">
@@ -143,8 +136,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Divider */}
-      <div className="h-4 bg-gradient-to-r from-primary/20 via-primary/40 to-primary/20"></div>
 
       {/* Features Section */}
       <section className="py-20 px-4 bg-white relative overflow-hidden">
@@ -175,7 +166,7 @@ export default function Home() {
               }
             ].map((feature, index) => (
               <div key={index} className="bg-white p-8 rounded-xl shadow-lg border border-primary/10 hover:border-primary/30 transition-all duration-300 hover:-translate-y-2 group">
-                <div className="text-5xl mb-6 text-primary bg-primary/10 w-20 h-20 flex items-center justify-center rounded-full mx-auto group-hover:bg-primary/20 transition-colors duration-300">{feature.icon}</div>
+                <div className="text-5xl mb-6 text-primary  w-20 h-20 flex items-center justify-center rounded-full mx-auto group-hover:bg-primary/20 transition-colors duration-300">{feature.icon}</div>
                 <h3 className="text-2xl font-semibold mb-4 text-primary">{feature.title}</h3>
                 <p className="text-slate-600 text-lg">{feature.description}</p>
               </div>
@@ -184,22 +175,11 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Divider */}
-      <div className="h-4 bg-gradient-to-r from-primary/20 via-primary/40 to-primary/20"></div>
+
+
 
       {/* Footer */}
-      <footer className="bg-primary/10 py-12">
-        <div className="max-w-7xl mx-auto px-4 text-center">
-          <div className="mb-8">
-            <h3 className="text-2xl font-bold text-primary mb-4">Dunamis Greenhouse</h3>
-            <p className="text-slate-600">Transforming lives through spiritual leadership development</p>
-          </div>
-          <div className="text-sm text-slate-500">
-            <p>© 2025 Dunamis Greenhouse. All rights reserved.</p>
-            <p className="mt-2">Via SS 113 Settentrionale Sicula, 90047 Partinico PA, Italy</p>
-          </div>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 }

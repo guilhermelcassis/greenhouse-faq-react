@@ -4,6 +4,7 @@ import { useState } from 'react';
 import faqData from '@/data/faqData.json';
 import Link from 'next/link';
 import { ChevronDown, ChevronUp } from 'lucide-react';
+import { Footer } from '@/components/Footer';
 
 export default function FAQPage() {
   const [openCategoryIndex, setOpenCategoryIndex] = useState<number | null>(0); // Open first category by default
@@ -57,30 +58,19 @@ export default function FAQPage() {
         
         <div className="relative z-10 text-center space-y-6 px-4 max-w-4xl mx-auto animate-fade-in">
           <div className="">
-            <h1 className="text-5xl md:text-6xl font-bold tracking-tight text-white drop-shadow-lg shadow-black mb-4" 
-                style={{ 
-                  textShadow: "0 4px 8px rgba(0,0,0,0.6), 0 2px 4px rgba(0,0,0,0.8)" 
-                }}>
+            <h1 className="text-5xl md:text-6xl font-bold tracking-tight text-white drop-shadow-lg shadow-black mb-4">
               Frequently Asked Questions
             </h1>
-            <p className="text-xl text-white max-w-2xl mx-auto font-medium drop-shadow-md mb-6" 
-                style={{ 
-                  textShadow: "0 4px 8px rgba(0,0,0,0.6), 0 2px 4px rgba(0,0,0,0.8)" 
-                }}>
+            <p className="text-xl text-white max-w-2xl mx-auto font-medium drop-shadow-md mb-6">
               Find answers to common questions about Greenhouse 2025
             </p>
           </div>
         </div>
       </section>
 
-      {/* Divider */}
-      <div className="h-4 bg-gradient-to-r from-primary/20 via-primary/40 to-primary/20"></div>
-
       {/* FAQ Section */}
       <section className="py-20 px-4 bg-white relative overflow-hidden">
         {/* Decorative background elements */}
-        <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full -mr-32 -mt-32"></div>
-        <div className="absolute bottom-0 left-0 w-64 h-64 bg-primary/5 rounded-full -ml-32 -mb-32"></div>
         
         <div className="relative z-10 max-w-3xl mx-auto space-y-16">
           <div className="text-center mb-12">
@@ -88,60 +78,59 @@ export default function FAQPage() {
             <div className="w-24 h-1 bg-gradient-to-r from-primary to-emerald-500 mx-auto mt-4"></div>
           </div>
           
-          {faqData.map((category, categoryIndex) => (
-            <div key={categoryIndex} className="mb-10">
-              {/* Category Title */}
-              <button
-                onClick={() => toggleCategory(categoryIndex)}
-                className="w-full text-left flex justify-between items-center p-6 bg-white rounded-xl shadow-lg border border-primary/10 hover:border-primary/30 transition-all duration-300 hover:-translate-y-1 group"
-              >
-                <span className="font-bold text-xl text-primary">{category.title}</span>
-                <span className="text-primary bg-primary/10 p-2 rounded-full group-hover:bg-primary/20 transition-colors duration-300">
-                  {openCategoryIndex === categoryIndex ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-                </span>
-              </button>
+          <div className="space-y-0">
+            {faqData.map((category, categoryIndex) => (
+              <div key={categoryIndex} className="mb-0 border border-gray-200 rounded-lg last:border-b-0">
+                {/* Category Title - Improved readability */}
+                <button
+                  onClick={() => toggleCategory(categoryIndex)}
+                  className="w-full text-left flex justify-between items-center p-4 bg-white rounded-t-lg shadow-sm border border-gray-200 hover:border-primary/30 transition-all duration-300 group"
+                >
+                  <span className="font-bold text-base text-slate-800">{category.title}</span>
+                  <span className="text-primary bg-gray-100 p-1 rounded-full group-hover:bg-gray-200 transition-colors duration-300">
+                    {openCategoryIndex === categoryIndex ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                  </span>
+                </button>
 
-              {/* Questions (only shown if category is open) */}
-              {openCategoryIndex === categoryIndex && (
-                <div className="mt-6 space-y-4">
-                  {category.questions.map((faq, index) => (
-                    <div key={index} className="border border-primary/10 rounded-lg overflow-hidden bg-white shadow-md hover:border-primary/20 transition-all duration-300">
-                      <button
-                        onClick={() => toggleQuestion(`${categoryIndex}-${index}`)}
-                        className={`w-full text-left flex justify-between items-center p-5 transition-colors duration-300 ${
-                          openQuestionIndex === `${categoryIndex}-${index}` 
-                            ? 'bg-gradient-to-r from-primary/20 to-emerald-500/20 text-primary font-medium' 
-                            : 'hover:bg-primary/5'
-                        }`}
-                      >
-                        <span className="font-medium text-slate-800">{faq.question}</span>
-                        <span className={`p-1.5 rounded-full ${
-                          openQuestionIndex === `${categoryIndex}-${index}` 
-                            ? 'bg-primary/20 text-primary' 
-                            : 'bg-primary/10 text-primary'
-                        }`}>
-                          {openQuestionIndex === `${categoryIndex}-${index}` ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
-                        </span>
-                      </button>
-                      
-                      {openQuestionIndex === `${categoryIndex}-${index}` && (
-                        <div className="p-6 bg-gradient-to-r from-primary/5 to-emerald-500/5 border-t border-primary/10">
-                          <p className="text-slate-700 leading-relaxed">
-                            {renderAnswerWithLinks(faq.answer)}
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          ))}
+                {/* Questions (only shown if category is open) */}
+                {openCategoryIndex === categoryIndex && (
+                  <div className="py-4 space-y-2 bg-white border-b border-gray-200 rounded-b-lg shadow-sm px-4">
+                    {category.questions.map((faq, index) => (
+                      <div key={index} className="border border-gray-200 rounded-md overflow-hidden bg-white shadow-sm hover:border-gray-300 transition-all duration-300">
+                        <button
+                          onClick={() => toggleQuestion(`${categoryIndex}-${index}`)}
+                          className={`w-full text-left flex justify-between items-center p-3 bg-emerald-50 transition-colors duration-300 ${
+                            openQuestionIndex === `${categoryIndex}-${index}` 
+                              ? 'bg-gray-100 text-slate-900 font-medium' 
+                              : 'hover:bg-gray-50'
+                          }`}
+                        >
+                          <span className="font-medium text-sm text-slate-700">{faq.question}</span>
+                          <span className={`p-1 rounded-full ${
+                            openQuestionIndex === `${categoryIndex}-${index}` 
+                              ? 'bg-gray-200 text-slate-700' 
+                              : 'bg-gray-100 text-slate-600'
+                          }`}>
+                            {openQuestionIndex === `${categoryIndex}-${index}` ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                          </span>
+                        </button>
+                        
+                        {openQuestionIndex === `${categoryIndex}-${index}` && (
+                          <div className="p-4 bg-gray-50 border-t border-gray-200">
+                            <p className="text-sm text-slate-700 leading-relaxed">
+                              {renderAnswerWithLinks(faq.answer)}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
       </section>
-
-      {/* Divider */}
-      <div className="h-4 bg-gradient-to-r from-primary/20 via-primary/40 to-primary/20"></div>
 
       {/* CTA Section */}
       <section className="py-20 px-4 bg-white relative overflow-hidden">
@@ -150,7 +139,7 @@ export default function FAQPage() {
         <div className="relative z-10 max-w-4xl mx-auto text-center space-y-8">
           <div className="mb-8">
             <h2 className="text-4xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-primary to-emerald-500 inline-block">Still Have Questions?</h2>
-            <div className="w-24 h-1 bg-gradient-to-r from-primary to-emerald-500 mx-auto mt-4"></div>
+            <div className="w-24 h-1 bg-gradient-to-r from-primary to-emerald-00 mx-auto mt-4"></div>
           </div>
           
           <p className="text-xl text-slate-600 max-w-2xl mx-auto">
@@ -169,22 +158,9 @@ export default function FAQPage() {
         </div>
       </section>
 
-      {/* Divider */}
-      <div className="h-4 bg-gradient-to-r from-primary/20 via-primary/40 to-primary/20"></div>
 
       {/* Footer */}
-      <footer className="bg-primary/10 py-12">
-        <div className="max-w-7xl mx-auto px-4 text-center">
-          <div className="mb-8">
-            <h3 className="text-2xl font-bold text-primary mb-4">Dunamis Greenhouse</h3>
-            <p className="text-slate-600">Transforming lives through spiritual leadership development</p>
-          </div>
-          <div className="text-sm text-slate-500">
-            <p>© 2025 Dunamis Greenhouse. All rights reserved.</p>
-            <p className="mt-2">Via SS 113 Settentrionale Sicula, 90047 Partinico PA, Italy</p>
-          </div>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 }

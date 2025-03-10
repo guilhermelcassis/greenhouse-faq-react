@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import React, { useState, useEffect } from 'react';
 import { featuredGreenhouseImages, featuredMissionImages } from '@/data/greenhouseImages';
+import { Footer } from '@/components/Footer';
 
 // Image Modal Component
 function ImageModal({ image, onClose }: { image: { src: string; alt?: string }; onClose: () => void }) {
@@ -48,7 +49,7 @@ const testimonials = [
   {
     name: "Eddie Nunes",
     role: "Ministry Leader",
-    text: "The teachings and community at Greenhouse are unparallequeed. I highly recommend it!",
+    text: "The teachings and community at Greenhouse are amazing. I highly recommend it!",
     image: "/images/avatar2.jpg"
   },
   {
@@ -136,9 +137,6 @@ export default function GreenhousePage() {
         </div>
       </section>
 
-      {/* Divider */}
-      <div className="h-4 bg-gradient-to-r from-primary/20 via-primary/40 to-primary/20"></div>
-
       {/* Details Section */}
       <section className="py-20 px-4 bg-white relative overflow-hidden">
         {/* Decorative background elements */}
@@ -169,9 +167,6 @@ export default function GreenhousePage() {
           </div>
         </div>
       </section>
-
-      {/* Divider */}
-      <div className="h-4 bg-gradient-to-r from-primary/20 via-primary/40 to-primary/20"></div>
 
       {/* About Section */}
       <section className="relative py-24 overflow-hidden bg-gradient-to-b from-white to-primary/5">
@@ -268,12 +263,7 @@ export default function GreenhousePage() {
         </div>
       </section>
       
-      {/* Divider */}
-      <div className="h-4 bg-gradient-to-r from-primary/20 via-primary/40 to-primary/20"></div>
-      
-
-      
-      <div className="max-w-7xl mx-auto space-y-16 mt-20">
+      <div className="max-w-7xl mx-auto space-y-16 mt-14 mb-16 px-4">
             <div className="text-center mb-16">
               <h2 className="text-4xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-primary to-emerald-500 inline-block">Selective Process</h2>
               <div className="w-24 h-1 bg-gradient-to-r from-primary to-emerald-500 mx-auto mt-4"></div>
@@ -299,12 +289,10 @@ export default function GreenhousePage() {
 
 
       {/* Testimonials Section */}
-      <section className="py-20 px-4 bg-white relative overflow-hidden">
+      <section className="py-14 px-4 bg-white relative overflow-hidden">
         {/* Decorative elements */}
         <div className="absolute inset-0 bg-primary/5 opacity-30"></div>
-        <div className="absolute top-0 left-0 w-64 h-64 bg-primary/5 rounded-full -ml-32 -mt-32"></div>
-        <div className="absolute bottom-0 right-0 w-64 h-64 bg-primary/5 rounded-full -mr-32 -mb-32"></div>
-        
+
         <div className="relative z-10 max-w-7xl mx-auto space-y-12">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-primary to-emerald-500 inline-block">Testimonials</h2>
@@ -314,8 +302,7 @@ export default function GreenhousePage() {
           <div className="grid md:grid-cols-3 gap-8">
             {testimonials.map((testimonial, index) => (
               <div key={index} className="bg-white p-8 rounded-xl shadow-lg border border-primary/10 hover:border-primary/30 transition-all duration-300 hover:-translate-y-1 group">
-                <div className="mb-6 text-primary text-4xl"></div>
-                <p className="text-slate-600 italic mb-6 text-lg">{testimonial.text}</p>
+                        <p className="text-slate-600 italic mb-6 text-lg">{testimonial.text}</p>
                 <div className="flex items-center space-x-4">
                   <div className="relative w-14 h-14 rounded-full overflow-hidden ring-2 ring-primary/20 group-hover:ring-primary/40 transition-all duration-300">
                     <Image 
@@ -336,8 +323,6 @@ export default function GreenhousePage() {
         </div>
       </section>
 
-      {/* Divider */}
-      <div className="h-4 bg-gradient-to-r from-primary/20 via-primary/40 to-primary/20"></div>
 
       {/* Gallery Section */}
       <section className="py-20 bg-white relative overflow-hidden">
@@ -421,9 +406,6 @@ export default function GreenhousePage() {
         </div>
       </section>
 
-      {/* Divider */}
-      <div className="h-4 bg-gradient-to-r from-primary/20 via-primary/40 to-primary/20"></div>
-
       {/* Core Values Section */}
       <section className="py-20 px-4 bg-white relative overflow-hidden">
         {/* Decorative elements */}
@@ -453,7 +435,7 @@ export default function GreenhousePage() {
               }
             ].map((feature, index) => (
               <div key={index} className="bg-white p-8 rounded-xl shadow-lg border border-primary/10 hover:border-primary/30 transition-all duration-300 hover:-translate-y-2 group">
-                <div className="text-5xl mb-6 text-primary bg-primary/10 w-20 h-20 flex items-center justify-center rounded-full mx-auto group-hover:bg-primary/20 transition-colors duration-300">{feature.icon}</div>
+                <div className="text-5xl mb-6 text-primary w-20 h-20 flex items-center justify-center rounded-full mx-auto group-hover:bg-primary/20 transition-colors duration-300">{feature.icon}</div>
                 <h3 className="text-2xl font-semibold mb-4 text-primary">{feature.title}</h3>
                 <p className="text-slate-600 text-lg">{feature.description}</p>
               </div>
@@ -462,21 +444,8 @@ export default function GreenhousePage() {
         </div>
       </section>
 
-      {/* Divider */}
-      <div className="h-4 bg-gradient-to-r from-primary/20 via-primary/40 to-primary/20"></div>
-
       {/* Footer */}
-      <footer className="bg-primary/10 py-12">
-        <div className="max-w-7xl mx-auto px-4 text-center">
-          <div className="mb-8">
-            <h3 className="text-2xl font-bold text-primary mb-4">Dunamis Greenhouse</h3>
-          </div>
-          <div className="text-sm text-slate-500">
-            <p>© 2025 Dunamis Greenhouse. All rights reserved.</p>
-            <p className="mt-2">Via SS 113 Settentrionale Sicula, 90047 Partinico PA, Italy</p>
-          </div>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 }
