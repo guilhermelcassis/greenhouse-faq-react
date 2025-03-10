@@ -44,86 +44,117 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Hero Section - Simplified without mosaic */}
-      <section className="relative h-[60vh] flex items-center justify-center bg-green-gradient-radial">
+      {/* Hero Section */}
+      <section className="relative h-[70vh] flex items-center justify-center overflow-hidden">
         {/* Background Image */}
-        <div 
-          className="absolute inset-0 z-0 bg-cover bg-center opacity-80"
-          style={{
-            backgroundImage: "url('images/greenhouse/image (24).jpg')",
-          }}
-        ></div>
-        
-        {/* Dark overlay to improve text contrast */}
-        <div className="absolute inset-0 z-5 bg-gradient-to-b from-black/30 to-black/60 mix-blend-multiply"></div>
+        <div className="absolute inset-0 z-0">
+          <div className="absolute inset-0 bg-black/50 z-10"></div>
+          <div 
+            className="absolute inset-0 bg-cover bg-center"
+            style={{
+              backgroundImage: "url('images/greenhouse/image (24).jpg')",
+              filter: "saturate(1.2)"
+            }}
+          ></div>
+          <div className="absolute inset-0 bg-gradient-to-b from-primary/30 to-primary/10 mix-blend-overlay"></div>
+        </div>
         
         <div className="relative z-10 text-center space-y-6 px-4 max-w-4xl mx-auto animate-fade-in">
-          <div className="">
-            <h1 className="text-5xl md:text-6xl font-bold tracking-tight text-white drop-shadow-lg">
+          <div className="bg-black/20 p-6 backdrop-blur-sm rounded-xl">
+            <h1 className="text-5xl md:text-6xl font-bold tracking-tight text-white drop-shadow-lg shadow-black mb-4" 
+                style={{ 
+                  textShadow: "0 4px 8px rgba(0,0,0,0.6), 0 2px 4px rgba(0,0,0,0.8)" 
+                }}>
               Greenhouse 2025 Q&A
             </h1>
-            <p className="text-xl text-white max-w-2xl mx-auto mt-4 font-medium drop-shadow-md" style={{ textShadow: "0 1px 3px rgba(0,0,0,0.5)" }}>
+            <p className="text-xl text-white max-w-2xl mx-auto font-medium drop-shadow-md mb-6" 
+                style={{ 
+                  textShadow: "0 4px 8px rgba(0,0,0,0.6), 0 2px 4px rgba(0,0,0,0.8)" 
+                }}>
               Ask your questions about Dunamis Greenhouse and get instant answers from our AI assistant.
             </p>
           </div>
         </div>
       </section>
 
+      {/* Divider */}
+      <div className="h-4 bg-gradient-to-r from-primary/20 via-primary/40 to-primary/20"></div>
+
       {/* Main Content */}
-      <section className="py-16 px-4">
-        <div className="max-w-2xl mx-auto bg-white rounded-xl shadow-md border-green-subtle card-hover-effect p-8">
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="space-y-2">
-              <label htmlFor="question" className="text-sm font-medium text-gray-700">
-                Your Question
-              </label>
-              <input
-                id="question"
-                type="text"
-                value={question}
-                ref={inputRef}
-                onChange={(e) => setQuestion(e.target.value)}
-                placeholder="Ask a question about Greenhouse 2025..."
-                className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary"
-              />
-            </div>
-            
-            <button
-              type="submit"
-              disabled={!question.trim() || isLoading}
-              className={`
-                w-full p-3 bg-primary text-white font-medium rounded-lg 
-                hover:bg-primary/90 transition-colors
-                disabled:opacity-50 disabled:cursor-not-allowed
-              `}
-            >
-              {isLoading ? (
-                <span className="flex items-center justify-center">
-                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  Processing...
-                </span>
-              ) : (
-                'Get Answer'
-              )}
-            </button>
-          </form>
+      <section className="py-20 px-4 bg-white relative overflow-hidden">
+        {/* Decorative background elements */}
+        <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full -mr-32 -mt-32"></div>
+        <div className="absolute bottom-0 left-0 w-64 h-64 bg-primary/5 rounded-full -ml-32 -mb-32"></div>
+        
+        <div className="relative z-10 max-w-2xl mx-auto space-y-16">
+          <div className="text-center mb-12">
+            <h2 className="text-4xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-primary to-emerald-500 inline-block">Ask Your Question</h2>
+            <div className="w-24 h-1 bg-gradient-to-r from-primary to-emerald-500 mx-auto mt-4"></div>
+          </div>
           
-          {answer && (
-            <div className="mt-8 p-6 bg-secondary/30 border-l-4 border-primary rounded-lg">
-              <h3 className="font-medium text-gray-900 mb-2">Answer:</h3>
-              <p className="text-gray-700 whitespace-pre-line">{answer}</p>
-            </div>
-          )}
+          <div className="bg-white rounded-xl shadow-lg border border-primary/10 hover:border-primary/30 transition-all duration-300 p-8">
+            <form onSubmit={handleSubmit} className="space-y-8">
+              <div className="space-y-3">
+                <label htmlFor="question" className="text-lg font-medium text-slate-700">
+                  Your Question
+                </label>
+                <input
+                  id="question"
+                  type="text"
+                  value={question}
+                  ref={inputRef}
+                  onChange={(e) => setQuestion(e.target.value)}
+                  placeholder="Ask a question about Greenhouse 2025..."
+                  className="w-full p-4 border border-primary/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary text-lg"
+                />
+              </div>
+              
+              <button
+                type="submit"
+                disabled={!question.trim() || isLoading}
+                className={`
+                  w-full p-4 bg-primary text-white font-medium rounded-lg text-lg
+                  hover:bg-primary/90 transition-colors duration-300
+                  disabled:opacity-50 disabled:cursor-not-allowed
+                  transform hover:-translate-y-1 active:translate-y-0
+                `}
+              >
+                {isLoading ? (
+                  <span className="flex items-center justify-center">
+                    <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Processing...
+                  </span>
+                ) : (
+                  'Get Answer'
+                )}
+              </button>
+            </form>
+            
+            {answer && (
+              <div className="mt-10 p-8 bg-gradient-to-r from-primary/5 to-emerald-500/5 border-l-4 border-primary rounded-lg">
+                <h3 className="font-semibold text-xl text-primary mb-4">Answer:</h3>
+                <p className="text-slate-700 whitespace-pre-line leading-relaxed">{answer}</p>
+              </div>
+            )}
+          </div>
         </div>
       </section>
 
+      {/* Divider */}
+      <div className="h-4 bg-gradient-to-r from-primary/20 via-primary/40 to-primary/20"></div>
+
       {/* Features Section */}
-      <section className="py-16 bg-green-pattern-light">
-        <div className="max-w-6xl mx-auto px-4 text-center">
-          <h2 className="text-3xl font-bold mb-12 text-gradient-green">Why Use Our Q&A System?</h2>
+      <section className="py-20 px-4 bg-white relative overflow-hidden">
+        {/* Decorative elements */}
+        <div className="absolute inset-0 bg-gradient-to-b from-white to-primary/5"></div>
+        <div className="relative z-10 max-w-6xl mx-auto text-center">
+          <div className="mb-16">
+            <h2 className="text-4xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-primary to-emerald-500 inline-block">Why Use Our Q&A System?</h2>
+            <div className="w-24 h-1 bg-gradient-to-r from-primary to-emerald-500 mx-auto mt-4"></div>
+          </div>
           
           <div className="grid md:grid-cols-3 gap-8">
             {[
@@ -143,21 +174,30 @@ export default function Home() {
                 icon: "🕒"
               }
             ].map((feature, index) => (
-              <div key={index} className="bg-white p-6 rounded-xl shadow-md border-green-subtle card-hover-effect">
-                <div className="text-4xl mb-4 text-primary">{feature.icon}</div>
-                <h3 className="text-xl font-semibold mb-2">{feature.title}</h3>
-                <p className="text-gray-600">{feature.description}</p>
+              <div key={index} className="bg-white p-8 rounded-xl shadow-lg border border-primary/10 hover:border-primary/30 transition-all duration-300 hover:-translate-y-2 group">
+                <div className="text-5xl mb-6 text-primary bg-primary/10 w-20 h-20 flex items-center justify-center rounded-full mx-auto group-hover:bg-primary/20 transition-colors duration-300">{feature.icon}</div>
+                <h3 className="text-2xl font-semibold mb-4 text-primary">{feature.title}</h3>
+                <p className="text-slate-600 text-lg">{feature.description}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
+      {/* Divider */}
+      <div className="h-4 bg-gradient-to-r from-primary/20 via-primary/40 to-primary/20"></div>
+
       {/* Footer */}
       <footer className="bg-primary/10 py-12">
-        <div className="max-w-7xl mx-auto px-4 text-center text-sm text-muted-foreground">
-          <p>© 2025 Dunamis Greenhouse. All rights reserved.</p>
-          <p className="mt-2">Via SS 113 Settentrionale Sicula, 90047 Partinico PA, Italy</p>
+        <div className="max-w-7xl mx-auto px-4 text-center">
+          <div className="mb-8">
+            <h3 className="text-2xl font-bold text-primary mb-4">Dunamis Greenhouse</h3>
+            <p className="text-slate-600">Transforming lives through spiritual leadership development</p>
+          </div>
+          <div className="text-sm text-slate-500">
+            <p>© 2025 Dunamis Greenhouse. All rights reserved.</p>
+            <p className="mt-2">Via SS 113 Settentrionale Sicula, 90047 Partinico PA, Italy</p>
+          </div>
         </div>
       </footer>
     </div>
