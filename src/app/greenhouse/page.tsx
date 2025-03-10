@@ -314,7 +314,7 @@ export default function GreenhousePage() {
           <div className="grid md:grid-cols-3 gap-8">
             {testimonials.map((testimonial, index) => (
               <div key={index} className="bg-white p-8 rounded-xl shadow-lg border border-primary/10 hover:border-primary/30 transition-all duration-300 hover:-translate-y-1 group">
-                <div className="mb-6 text-primary text-4xl">"</div>
+                <div className="mb-6 text-primary text-4xl"></div>
                 <p className="text-slate-600 italic mb-6 text-lg">{testimonial.text}</p>
                 <div className="flex items-center space-x-4">
                   <div className="relative w-14 h-14 rounded-full overflow-hidden ring-2 ring-primary/20 group-hover:ring-primary/40 transition-all duration-300">
