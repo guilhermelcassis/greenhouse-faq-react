@@ -25,7 +25,7 @@ function createImageArray(
 
 // Create the base image arrays
 const greenhouseGalleryImages = createImageArray('/images/greenhouse/image ', 44);
-const missionTripImages = createImageArray('/images/mission-trip/mt ', 10);
+const missionTripImages = createImageArray('/images/mission-trip/mt ', 8);
 
 // Combined images for background mosaics
 export const allImages = [

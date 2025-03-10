@@ -46,13 +46,26 @@ export default function Home() {
     <div className="min-h-screen bg-background">
       {/* Hero Section - Simplified without mosaic */}
       <section className="relative h-[60vh] flex items-center justify-center bg-green-gradient-radial">
-        <div className="relative text-center space-y-6 px-4 max-w-4xl mx-auto animate-fade-in">
-          <h1 className="text-5xl md:text-6xl font-bold tracking-tight text-gradient-green">
-            Greenhouse 2025 Q&A
-          </h1>
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Ask your questions about Dunamis Greenhouse and get instant answers from our AI assistant.
-          </p>
+        {/* Background Image */}
+        <div 
+          className="absolute inset-0 z-0 bg-cover bg-center opacity-80"
+          style={{
+            backgroundImage: "url('images/greenhouse/image (24).jpg')",
+          }}
+        ></div>
+        
+        {/* Dark overlay to improve text contrast */}
+        <div className="absolute inset-0 z-5 bg-gradient-to-b from-black/30 to-black/60 mix-blend-multiply"></div>
+        
+        <div className="relative z-10 text-center space-y-6 px-4 max-w-4xl mx-auto animate-fade-in">
+          <div className="">
+            <h1 className="text-5xl md:text-6xl font-bold tracking-tight text-white drop-shadow-lg">
+              Greenhouse 2025 Q&A
+            </h1>
+            <p className="text-xl text-white max-w-2xl mx-auto mt-4 font-medium drop-shadow-md" style={{ textShadow: "0 1px 3px rgba(0,0,0,0.5)" }}>
+              Ask your questions about Dunamis Greenhouse and get instant answers from our AI assistant.
+            </p>
+          </div>
         </div>
       </section>
 

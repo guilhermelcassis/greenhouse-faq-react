@@ -139,33 +139,108 @@ export default function GreenhousePage() {
           </div>
           
           {/* About Section */}
-          <div className="grid md:grid-cols-2 gap-12 items-center">
-            <div className="space-y-6">
-              <span className="text-sm font-semibold text-primary">About Greenhouse</span>
-              <h3 className="text-3xl font-bold tracking-tight">What to Expect</h3>
-              <div className="space-y-4 text-muted-foreground">
-                <p>
-                  Greenhouse is a 10-day immersive program designed to equip and empower the next generation of leaders. 
-                  Through powerful teaching, practical activation, and community living, participants experience 
-                  transformational growth in their spiritual lives and leadership abilities.
-                </p>
-                <p>
-                  The program includes daily worship, teaching sessions, small group discussions, 
-                  activation exercises, and evening services. There will also be time for personal 
-                  reflection, community building, and exploring the beautiful surroundings of Sicily.
-                </p>
+          <section className="relative py-20 overflow-hidden">
+            {/* Background Elements */}
+            <div className="absolute inset-0 z-0 opacity-5">
+              <div className="absolute top-0 right-0 w-96 h-96 bg-primary rounded-full -mr-48 -mt-48"></div>
+              <div className="absolute bottom-0 left-0 w-96 h-96 bg-primary rounded-full -ml-48 -mb-48"></div>
+            </div>
+            
+            {/* Background Image with Overlay */}
+            <div className="absolute inset-0 z-0">
+              {/* Semi-transparent color overlay */}
+              <div className="absolute inset-0 bg-primary/5 dark:bg-primary/10 mix-blend-multiply z-10"></div>
+              
+              {/* Image */}
+              <div 
+                className="absolute inset-0 bg-cover bg-center opacity-70 dark:opacity-10"
+                style={{
+                  backgroundImage: "url('/images/greenhouse/image (1).jpg')",
+                  filter: "saturate(0.7) brightness(1.1)",
+                  mixBlendMode: "soft-light"
+                }}
+              ></div>
+              
+              {/* Gradient overlay */}
+              <div className="absolute inset-0 bg-gradient-to-b from-white/40 to-white/90 dark:from-slate-900/40 dark:to-slate-900/90 z-20"></div>
+            </div>
+            
+            {/* Content Container */}
+            <div className="relative z-10 container mx-auto px-4">
+              {/* Section Header */}
+              <div className="max-w-2xl mx-auto text-center mb-16">
+                <h2 className="text-4xl md:text-5xl font-bold tracking-tight mb-4 bg-clip-text text-transparent bg-gradient-to-r from-primary to-emerald-500">What to Expect</h2>
+                <div className="w-24 h-1 bg-gradient-to-r from-primary to-emerald-500 mx-auto mb-6"></div>
+                <p className="text-xl text-slate-600 dark:text-slate-300">Our immersive program is built on three foundational pillars</p>
+              </div>
+              
+              {/* Cards Container - Full width on all screens */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-10">
+                {/* Card 1 - COMMUNITY */}
+                <div className="group relative overflow-hidden bg-white dark:bg-slate-800/50 backdrop-blur-sm p-8 md:p-10 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 border border-slate-200/50 dark:border-slate-700/50 hover:border-primary/30 dark:hover:border-primary/30 hover:-translate-y-2">
+                  {/* Card Background Elements */}
+                  <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full -mr-16 -mt-16 z-0 group-hover:bg-primary/10 transition-colors duration-300"></div>
+                  <div className="absolute bottom-0 left-0 w-24 h-24 bg-primary/10 rounded-full -ml-12 -mb-12 z-0 group-hover:bg-primary/15 transition-colors duration-300"></div>
+                  
+                  {/* Card Content */}
+                  <div className="relative z-10">
+                    <div className="w-16 h-16 flex items-center justify-center mb-6 bg-gradient-to-br from-primary/20 to-primary/10 rounded-2xl text-primary group-hover:from-primary/30 group-hover:to-primary/20 transition-colors duration-300">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                      </svg>
+                    </div>
+                    <h3 className="text-xl md:text-2xl font-bold mb-4 text-slate-900 dark:text-white group-hover:text-primary transition-colors duration-300">COMMUNITY</h3>
+                    <p className="text-lg text-slate-600 dark:text-slate-300 group-hover:text-slate-800 dark:group-hover:text-slate-200 transition-colors duration-300 leading-relaxed">
+                      We have students from all over the world. Connection is one of the main pillars of our school.
+                    </p>
+                  </div>
+                </div>
+                
+                {/* Card 2 - CONTENT */}
+                <div className="group relative overflow-hidden bg-white dark:bg-slate-800/50 backdrop-blur-sm p-8 md:p-10 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 border border-slate-200/50 dark:border-slate-700/50 hover:border-primary/30 dark:hover:border-primary/30 hover:-translate-y-2">
+                  {/* Card Background Elements */}
+                  <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full -mr-16 -mt-16 z-0 group-hover:bg-primary/10 transition-colors duration-300"></div>
+                  <div className="absolute bottom-0 left-0 w-24 h-24 bg-primary/10 rounded-full -ml-12 -mb-12 z-0 group-hover:bg-primary/15 transition-colors duration-300"></div>
+                  
+                  {/* Card Content */}
+                  <div className="relative z-10">
+                    <div className="w-16 h-16 flex items-center justify-center mb-6 bg-gradient-to-br from-primary/20 to-primary/10 rounded-2xl text-primary group-hover:from-primary/30 group-hover:to-primary/20 transition-colors duration-300">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                      </svg>
+                    </div>
+                    <h3 className="text-xl md:text-2xl font-bold mb-4 text-slate-900 dark:text-white group-hover:text-primary transition-colors duration-300">CONTENT</h3>
+                    <p className="text-lg text-slate-600 dark:text-slate-300 group-hover:text-slate-800 dark:group-hover:text-slate-200 transition-colors duration-300 leading-relaxed">
+                      More than 20 classes with teachers from Dunamis and guest speakers.
+                    </p>
+                  </div>
+                </div>
+                
+                {/* Card 3 - POWERMENT */}
+                <div className="group relative overflow-hidden bg-white dark:bg-slate-800/50 backdrop-blur-sm p-8 md:p-10 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 border border-slate-200/50 dark:border-slate-700/50 hover:border-primary/30 dark:hover:border-primary/30 hover:-translate-y-2">
+                  {/* Card Background Elements */}
+                  <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full -mr-16 -mt-16 z-0 group-hover:bg-primary/10 transition-colors duration-300"></div>
+                  <div className="absolute bottom-0 left-0 w-24 h-24 bg-primary/10 rounded-full -ml-12 -mb-12 z-0 group-hover:bg-primary/15 transition-colors duration-300"></div>
+                  
+                  {/* Card Content */}
+                  <div className="relative z-10">
+                    <div className="w-16 h-16 flex items-center justify-center mb-6 bg-gradient-to-br from-primary/20 to-primary/10 rounded-2xl text-primary group-hover:from-primary/30 group-hover:to-primary/20 transition-colors duration-300">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                      </svg>
+                    </div>
+                    <h3 className="text-xl md:text-2xl font-bold mb-4 text-slate-900 dark:text-white group-hover:text-primary transition-colors duration-300">POWERMENT</h3>
+                    <p className="text-lg text-slate-600 dark:text-slate-300 group-hover:text-slate-800 dark:group-hover:text-slate-200 transition-colors duration-300 leading-relaxed">
+                      Specific classes for each sphere of society with leaders who are already established in these areas.
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
-            <div className="rounded-xl overflow-hidden shadow-lg">
-              <Image 
-                src="/images/greenhouse/image (1).jpg" 
-                alt="Greenhouse participants" 
-                width={600} 
-                height={400} 
-                className="w-full h-auto object-cover"
-              />
-            </div>
-          </div>
+          </section>
           
           {/* Testimonials */}
           <div className="space-y-8">
