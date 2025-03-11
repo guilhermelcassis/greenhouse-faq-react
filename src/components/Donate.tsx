@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, Minus, CreditCard, Heart } from 'lucide-react';
+import { Plus, Minus, CreditCard, Heart, CheckCircle } from 'lucide-react';
 import { loadStripe } from '@stripe/stripe-js';
 import {
   Elements,
@@ -101,71 +101,75 @@ export default function DonateComponent({ user, userEmail, userId }: DonateProps
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-md border-green-subtle card-hover-effect overflow-hidden">
+    <>
       {!clientSecret ? (
         <div className="p-8">
-          <div className="flex items-center justify-center mb-6">
-            <Heart className="text-primary mr-2" size={28} />
-            <h2 className="text-2xl font-bold text-gradient-green">Payment</h2>
+          <div className="flex items-center justify-center mb-8">
+            <div className="p-3 bg-primary/10 rounded-full text-primary mr-3">
+              <Heart size={28} />
+            </div>
+            <h2 className="text-3xl p-2 font-bold text-gradient-green">Payment</h2>
           </div>
           
-          <p className="text-center text-gray-600 mb-8">
-            Choose an amount to pay. Be part of Dunamis Greenhouse 2025!
-          </p>
+
           
-          <div className="space-y-4 mb-8">
+          <div className="space-y-5 mb-10">
             {/* €50 donation row */}
-            <div className="flex items-center justify-between p-4 border rounded-lg hover:border-primary transition-colors">
-              <div className="font-medium text-lg">€50 Payment</div>
-              <div className="flex items-center space-x-3">
+            <div className="flex items-center justify-between p-5 bg-white border border-gray-200 rounded-xl hover:border-primary hover:shadow-md transition-all duration-300">
+              <div className="font-medium text-lg text-gray-800">€50 Payment</div>
+              <div className="flex items-center space-x-4">
                 <button 
                   onClick={() => updateQuantity(50, -1)}
                   disabled={donations[50] === 0}
                   className="p-2 rounded-full bg-gray-100 hover:bg-gray-200 disabled:opacity-50 transition-colors"
+                  aria-label="Decrease quantity"
                 >
-                  <Minus size={16} />
+                  <Minus size={18} />
                 </button>
                 <span className="w-8 text-center text-lg font-medium">{donations[50]}</span>
                 <button 
                   onClick={() => updateQuantity(50, 1)}
-                  className="p-2 rounded-full bg-primary/10 hover:bg-primary/20 text-primary transition-colors"
+                  className="p-2 rounded-full bg-primary text-white hover:bg-primary/90 transition-colors"
+                  aria-label="Increase quantity"
                 >
-                  <Plus size={16} />
+                  <Plus size={18} />
                 </button>
               </div>
             </div>
             
             {/* €100 donation row */}
-            <div className="flex items-center justify-between p-4 border rounded-lg hover:border-primary transition-colors">
-              <div className="font-medium text-lg">€100 Payment</div>
-              <div className="flex items-center space-x-3">
+            <div className="flex items-center justify-between p-5 bg-white border border-gray-200 rounded-xl hover:border-primary hover:shadow-md transition-all duration-300">
+              <div className="font-medium text-lg text-gray-800">€100 Payment</div>
+              <div className="flex items-center space-x-4">
                 <button 
                   onClick={() => updateQuantity(100, -1)}
                   disabled={donations[100] === 0}
                   className="p-2 rounded-full bg-gray-100 hover:bg-gray-200 disabled:opacity-50 transition-colors"
+                  aria-label="Decrease quantity"
                 >
-                  <Minus size={16} />
+                  <Minus size={18} />
                 </button>
                 <span className="w-8 text-center text-lg font-medium">{donations[100]}</span>
                 <button 
                   onClick={() => updateQuantity(100, 1)}
-                  className="p-2 rounded-full bg-primary/10 hover:bg-primary/20 text-primary transition-colors"
+                  className="p-2 rounded-full bg-primary text-white hover:bg-primary/90 transition-colors"
+                  aria-label="Increase quantity"
                 >
-                  <Plus size={16} />
+                  <Plus size={18} />
                 </button>
               </div>
             </div>
             
             {/* Custom amount row with decimal support */}
-            <div className="flex items-center justify-between p-4 border rounded-lg hover:border-primary transition-colors">
-              <div className="font-medium text-lg">Custom Amount (€)</div>
-              <div className="w-24">
+            <div className="flex items-center justify-between p-5 bg-white border border-gray-200 rounded-xl hover:border-primary hover:shadow-md transition-all duration-300">
+              <div className="font-medium text-lg text-gray-800">Custom Amount (€)</div>
+              <div className="w-32">
                 <input
                   type="text"
                   value={customAmount}
                   onChange={handleCustomAmountChange}
                   placeholder="0.00"
-                  className="w-full p-2 border rounded-md text-right"
+                  className="w-full p-3 border border-gray-300 rounded-lg text-right focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50"
                   aria-label="Custom donation amount"
                 />
               </div>
@@ -173,7 +177,7 @@ export default function DonateComponent({ user, userEmail, userId }: DonateProps
           </div>
           
           {/* Total amount - format to show 2 decimal places */}
-          <div className="text-2xl font-bold text-center mb-6 py-3 bg-secondary/20 rounded-lg">
+          <div className="text-2xl font-bold text-center mb-8 py-4 bg-gradient-to-r from-primary/20 to-primary/5 rounded-xl">
             Total: €{totalAmount.toFixed(2)}
           </div>
           
@@ -189,11 +193,11 @@ export default function DonateComponent({ user, userEmail, userId }: DonateProps
                 setIsLoading(false);
               }
             }}
-            disabled={totalAmount === 0 || isLoading}
+            disabled={totalAmount <= 0 || isLoading}
             className={`
-              w-full py-4 px-6 rounded-lg flex items-center justify-center gap-3 text-lg font-medium
+              w-full py-4 px-6 rounded-xl flex items-center justify-center gap-3 text-lg font-medium
               transition-all transform hover:scale-[1.02] ${
-                totalAmount === 0
+                totalAmount <= 0
                   ? 'bg-gray-300 cursor-not-allowed'
                   : 'bg-primary text-white hover:bg-primary/90 shadow-lg hover:shadow-xl'
               }`}
@@ -217,7 +221,7 @@ export default function DonateComponent({ user, userEmail, userId }: DonateProps
           </Elements>
         </div>
       )}
-    </div>
+    </>
   );
 }
 
@@ -264,14 +268,19 @@ function CheckoutFormContent({ totalAmount }: { totalAmount: number }) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      <div className="flex items-center justify-center mb-6">
-        <CreditCard className="text-primary mr-2" size={28} />
-        <h2 className="text-2xl font-bold text-gradient-green">Be part of the revival of Europe</h2>
+      <div className="flex items-center justify-center mb-8">
+        <div className="p-3 bg-primary/10 rounded-full text-primary mr-3">
+          <CreditCard size={28} />
+        </div>
+        <h2 className="text-3xl font-bold text-gradient-green">Complete Your Payment</h2>
       </div>
 
-      <div className="mb-6">
-        <h3 className="text-lg font-medium mb-3">Payment Details</h3>
-        <div className="border rounded-lg p-4 hover:border-primary transition-colors">
+      <div className="mb-8">
+        <div className="flex items-center mb-4">
+          <CheckCircle className="text-primary mr-2" size={20} />
+          <h3 className="text-lg font-semibold">Payment Details</h3>
+        </div>
+        <div className="border border-gray-200 rounded-xl p-5 hover:border-primary transition-all duration-300 hover:shadow-md bg-white">
           <PaymentElement 
             options={{
               wallets: {
@@ -283,9 +292,12 @@ function CheckoutFormContent({ totalAmount }: { totalAmount: number }) {
         </div>
       </div>
 
-      <div className="mb-6">
-        <h3 className="text-lg font-medium mb-3">Billing Address</h3>
-        <div className="border rounded-lg p-4 hover:border-primary transition-colors">
+      <div className="mb-8">
+        <div className="flex items-center mb-4">
+          <CheckCircle className="text-primary mr-2" size={20} />
+          <h3 className="text-lg font-semibold">Billing Address</h3>
+        </div>
+        <div className="border border-gray-200 rounded-xl p-5 hover:border-primary transition-all duration-300 hover:shadow-md bg-white">
           <AddressElement options={{ 
             mode: 'shipping',
             fields: {
@@ -299,21 +311,22 @@ function CheckoutFormContent({ totalAmount }: { totalAmount: number }) {
       </div>
 
       {errorMessage && (
-        <div className="p-4 bg-red-100 text-red-700 rounded-lg border border-red-200">
-          {errorMessage}
+        <div className="p-5 bg-red-50 text-red-600 rounded-xl border border-red-200 flex items-start space-x-2">
+          <span className="flex-shrink-0 mt-0.5">⚠️</span>
+          <span>{errorMessage}</span>
         </div>
       )}
 
-      <div className="text-2xl font-bold text-center mb-6 py-3 bg-secondary/20 rounded-lg">
+      <div className="text-2xl font-bold text-center mb-8 py-4 bg-gradient-to-r from-primary/20 to-primary/5 rounded-xl">
         Total: €{totalAmount.toFixed(2)}
       </div>
 
       <button
         type="submit"
         disabled={!stripe || isLoading}
-        className="w-full py-4 px-6 rounded-lg bg-primary text-white hover:bg-primary/90 
+        className="w-full py-4 px-6 rounded-xl bg-primary text-white hover:bg-primary/90 
                  flex items-center justify-center gap-3 text-lg font-medium shadow-lg hover:shadow-xl
-                 transition-all transform hover:scale-[1.02] disabled:opacity-70 disabled:scale-100"
+                 transition-all transform hover:scale-[1.02] disabled:opacity-70 disabled:transform-none"
       >
         <CreditCard size={22} />
         {isLoading ? 'Processing...' : 'Complete Payment'}

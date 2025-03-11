@@ -105,16 +105,10 @@ export default function GreenhousePage() {
         
         <div className="relative z-10 text-center space-y-6 px-4 max-w-4xl mx-auto animate-fade-in">
           <div className="">
-            <h1 className="text-5xl md:text-6xl font-bold tracking-tight text-white drop-shadow-lg shadow-black mb-4" 
-                style={{ 
-                  textShadow: "0 4px 8px rgba(0,0,0,0.6), 0 2px 4px rgba(0,0,0,0.8)" 
-                }}>
+            <h1 className="text-5xl md:text-6xl font-bold tracking-tight text-white drop-shadow-lg shadow-black mb-4">
               Dunamis Greenhouse 2025
             </h1>
-            <p className="text-xl text-white max-w-2xl mx-auto font-medium drop-shadow-md mb-6" 
-                style={{ 
-                  textShadow: "0 4px 8px rgba(0,0,0,0.6), 0 2px 4px rgba(0,0,0,0.8)" 
-                }}>
+            <p className="text-xl text-white max-w-2xl mx-auto font-medium drop-shadow-md mb-6">
               A 10-day immersive program focused on spiritual leadership development and supernatural activation
             </p>
             <div className="flex flex-wrap justify-center gap-4 pt-4">
@@ -252,7 +246,7 @@ export default function GreenhousePage() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                     </svg>
                   </div>
-                  <h3 className="text-xl md:text-2xl font-bold text-primary dark:text-primary group-hover:text-primary transition-colors duration-300 flex items-center">POWERMENT</h3>
+                  <h3 className="text-xl md:text-2xl font-bold text-primary dark:text-primary group-hover:text-primary transition-colors duration-300 flex items-center">EMPOWERMENT</h3>
                 </div>
                 <p className="text-lg text-slate-600 dark:text-slate-300 group-hover:text-slate-800 dark:group-hover:text-slate-200 transition-colors duration-300 leading-relaxed">
                   Specific classes for each sphere of society with leaders who are already established in these areas.
@@ -265,7 +259,7 @@ export default function GreenhousePage() {
       
       <div className="max-w-7xl mx-auto space-y-16 mt-14 mb-16 px-4">
             <div className="text-center mb-16">
-              <h2 className="text-4xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-primary to-emerald-500 inline-block">Selective Process</h2>
+              <h2 className="text-4xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-primary to-emerald-500 inline-block">Enrollment Process</h2>
               <div className="w-24 h-1 bg-gradient-to-r from-primary to-emerald-500 mx-auto mt-4"></div>
             </div>
 

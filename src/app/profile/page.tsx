@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
 import { formatDistanceToNow } from 'date-fns';
 import { User, LogOut, CreditCard, Clock, FileText } from 'lucide-react';
+import { Footer } from '@/components/Footer';
 
 interface StripePayment {
   id: string;
@@ -26,6 +27,11 @@ export default function ProfilePage() {
   const [payments, setPayments] = useState<StripePayment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [totalSpent, setTotalSpent] = useState<number>(0);
+  const [isClient, setIsClient] = useState(false);
+  
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
   
   const fetchStripePayments = useCallback(async () => {
     try {
@@ -141,22 +147,37 @@ export default function ProfilePage() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Hero Section with gradient background */}
-      <section className="relative h-[30vh] flex items-center justify-center bg-green-gradient-radial">
-        <div className="relative text-center space-y-6 px-4 max-w-4xl mx-auto animate-fade-in">
-          <h1 className="text-5xl md:text-6xl font-bold tracking-tight text-gradient-green">
-            Revivalist Profile
-          </h1>
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Manage your account and view your payment history
-          </p>
+      {/* Hero Section with background image */}
+      <section className="relative h-[50vh] flex items-center justify-center overflow-hidden">
+        {/* Background Image */}
+        <div className="absolute inset-0 z-0">
+          <div className="absolute inset-0 bg-black/50 z-10"></div>
+          <div 
+            className="absolute inset-0 bg-cover bg-center"
+            style={{
+              backgroundImage: "url('/images/gh2/image (6).jpg')",
+              filter: "saturate(1.2)"
+            }}
+          ></div>
+          <div className="absolute inset-0 bg-gradient-to-b from-primary/30 to-primary/10 mix-blend-overlay"></div>
+        </div>
+        
+        <div className="relative z-10 text-center space-y-6 px-4 max-w-4xl mx-auto animate-fade-in">
+          <div className="">
+            <h1 className="text-5xl md:text-6xl font-bold tracking-tight text-white drop-shadow-lg shadow-black mb-4">
+              Revivalist Profile
+            </h1>
+            <p className="text-xl text-white max-w-2xl mx-auto font-medium drop-shadow-md mb-6">
+              Manage your account and view your payment history
+            </p>
+          </div>
         </div>
       </section>
 
-      <section className="py-16 px-4">
+      <section className="py-16 px-4 -mt-2 relative z-10">
         <div className="max-w-5xl mx-auto">
           {/* Profile Card */}
-          <div className="bg-white rounded-xl shadow-md border-green-subtle card-hover-effect p-8 mb-8">
+          <div className="bg-white rounded-xl shadow-lg border-green-subtle card-hover-effect p-8 mb-8">
             <div className="flex flex-col md:flex-row md:items-center justify-between">
               <div className="flex items-center space-x-4 mb-6 md:mb-0">
                 <div className="p-3 bg-primary/10 rounded-full text-primary">
@@ -209,86 +230,88 @@ export default function ProfilePage() {
       </section>
 
       {/* Payment History */}
-      <div className="bg-white rounded-xl shadow-md border-green-subtle card-hover-effect overflow-hidden">
-        <div className="p-6 border-b border-gray-100 flex items-center">
-          <FileText className="text-primary mr-3" size={24} />
-          <h2 className="text-2xl font-bold text-gradient-green">Payment History</h2>
-        </div>
-        
-        {payments.length === 0 ? (
-          <div className="p-12 text-center">
-            <div className="mb-4 text-primary opacity-50">
-              <CreditCard size={48} className="mx-auto" />
+      <div className="max-w-5xl mx-auto px-4 mb-16">
+        <div className="bg-white rounded-xl shadow-lg border-green-subtle card-hover-effect overflow-hidden">
+          <div className="p-6 border-b border-gray-100 flex items-center">
+            <FileText className="text-primary mr-3" size={24} />
+            <h2 className="text-2xl font-bold text-gradient-green">Payment History</h2>
+          </div>
+          
+          {payments.length === 0 ? (
+            <div className="p-12 text-center">
+              <div className="mb-4 text-primary opacity-50">
+                <CreditCard size={48} className="mx-auto" />
+              </div>
+              <p className="text-lg text-gray-500">{"You haven't made any payments yet."}</p>
             </div>
-            <p className="text-lg text-gray-500">{"You haven't made any payments yet."}</p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent">
-            <table className="w-full">
-              <thead className="bg-secondary/10">
-                <tr>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-primary uppercase tracking-wider">Date</th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-primary uppercase tracking-wider">Email</th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-primary uppercase tracking-wider">Amount</th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-primary uppercase tracking-wider">Receipt</th>
-                  <th className="px-6 py-4 text-left text-xs font-medium text-primary uppercase tracking-wider">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {payments
-                .filter(payment => payment.status !== 'failed' && !payment.refunded && !(payment.description?.toLowerCase().includes('refund')))
-                .map((payment) => (
-                  <tr key={payment.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-5 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-800">
-                        {new Date(Number(payment.created) * 1000).toLocaleDateString()}
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        {formatDistanceToNow(new Date(Number(payment.created) * 1000), { addSuffix: true })}
-                      </div>
-                    </td>
-                    <td className="px-6 py-5 whitespace-nowrap text-sm text-gray-600">{payment.email}</td>
-                    <td className="px-6 py-5 whitespace-nowrap text-sm font-medium text-gray-800">
-                      {new Intl.NumberFormat('en-US', {
-                        style: 'currency',
-                        currency: payment.currency.toUpperCase(),
-                      }).format((payment.amount_eur || payment.amount) / 100)}
-                    </td>
-                    <td className="px-6 py-5 whitespace-nowrap text-sm">
-                      {payment.receipt_url ? ( 
-                        <a 
-                          href={payment.receipt_url} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 px-3 py-1 bg-primary/10 hover:bg-primary/20 
-                                    text-primary rounded-full transition-colors"
-                        >
-                          <FileText size={14} />
-                          View Receipt
-                        </a>
-                      ) : (
-                        'N/A'
-                      )}
-                    </td>
-                    <td className="px-6 py-5 whitespace-nowrap">
-                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                        payment.status === 'succeeded' ? 'bg-green-100 text-green-800 px-3 py-1' : 
-                        payment.status === 'pending' ? 'bg-yellow-100 text-yellow-800 px-3 py-1' : 
-                        'bg-red-100 text-red-800 px-3 py-1'
-                      }`}>
-                        {payment.status}
-                      </span>
-                    </td>
+          ) : (
+            <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent">
+              <table className="w-full">
+                <thead className="bg-secondary/10">
+                  <tr>
+                    <th className="px-6 py-4 text-left text-xs font-medium text-primary uppercase tracking-wider">Date</th>
+                    <th className="px-6 py-4 text-left text-xs font-medium text-primary uppercase tracking-wider">Email</th>
+                    <th className="px-6 py-4 text-left text-xs font-medium text-primary uppercase tracking-wider">Amount</th>
+                    <th className="px-6 py-4 text-left text-xs font-medium text-primary uppercase tracking-wider">Receipt</th>
+                    <th className="px-6 py-4 text-left text-xs font-medium text-primary uppercase tracking-wider">Status</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {payments
+                  .filter(payment => payment.status !== 'failed' && !payment.refunded && !(payment.description?.toLowerCase().includes('refund')))
+                  .map((payment) => (
+                    <tr key={payment.id} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-6 py-5 whitespace-nowrap">
+                        <div className="text-sm font-medium text-gray-800">
+                          {new Date(Number(payment.created) * 1000).toLocaleDateString()}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          {formatDistanceToNow(new Date(Number(payment.created) * 1000), { addSuffix: true })}
+                        </div>
+                      </td>
+                      <td className="px-6 py-5 whitespace-nowrap text-sm text-gray-600">{payment.email}</td>
+                      <td className="px-6 py-5 whitespace-nowrap text-sm font-medium text-gray-800">
+                        {new Intl.NumberFormat('en-US', {
+                          style: 'currency',
+                          currency: payment.currency.toUpperCase(),
+                        }).format((payment.amount_eur || payment.amount) / 100)}
+                      </td>
+                      <td className="px-6 py-5 whitespace-nowrap text-sm">
+                        {payment.receipt_url ? ( 
+                          <a 
+                            href={payment.receipt_url} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 px-3 py-1 bg-primary/10 hover:bg-primary/20 
+                                      text-primary rounded-full transition-colors"
+                          >
+                            <FileText size={14} />
+                            View Receipt
+                          </a>
+                        ) : (
+                          'N/A'
+                        )}
+                      </td>
+                      <td className="px-6 py-5 whitespace-nowrap">
+                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                          payment.status === 'succeeded' ? 'bg-green-100 text-green-800 px-3 py-1' : 
+                          payment.status === 'pending' ? 'bg-yellow-100 text-yellow-800 px-3 py-1' : 
+                          'bg-red-100 text-red-800 px-3 py-1'
+                        }`}>
+                          {payment.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Additional Info Section */}
-      <section className="py-12 bg-green-pattern-light">
+      <section className="py-12 bg-green-pattern-light relative z-10">
         <div className="max-w-4xl mx-auto px-4 text-center">
           <h2 className="text-2xl font-bold mb-6 text-gradient-green">Be ready for Revival</h2>          
           <div className="flex justify-center">
@@ -303,6 +326,8 @@ export default function ProfilePage() {
           </div>
         </div>
       </section>
+      
+      {isClient && <Footer />}
     </div>
   );
 } 

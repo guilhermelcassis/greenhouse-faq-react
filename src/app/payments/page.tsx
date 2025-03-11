@@ -4,11 +4,17 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
 import DonateComponent from '@/components/Donate';
+import { Footer } from '@/components/Footer';
 
 export default function DonatePage() {
   const { user, loading } = useAuth();
   const router = useRouter();
   const [userMetadata, setUserMetadata] = useState<{ email: string; uid: string } | null>(null);
+  const [isClient, setIsClient] = useState(false);
+  
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
   
   useEffect(() => {
     if (!loading) {
@@ -44,32 +50,49 @@ export default function DonatePage() {
   
   return (
     <div className="min-h-screen bg-background">
-      {/* Hero Section with gradient background */}
-      <section className="relative h-[40vh] flex items-center justify-center bg-green-gradient-radial">
-        <div className="relative text-center space-y-6 px-4 max-w-4xl mx-auto animate-fade-in">
-          <h1 className="text-5xl md:text-6xl font-bold tracking-tight text-gradient-green">
-            Be part of the revival of Europe
-          </h1>
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-          &quot;Also I heard the voice of the Lord, saying, Whom shall I send, and who will go for us? Then said I, Here am I; send me.&quot; (Isaiah 6:8)
-          </p>
+      {/* Hero Section with background image */}
+      <section className="relative h-[50vh] flex items-center justify-center overflow-hidden">
+        {/* Background Image */}
+        <div className="absolute inset-0 z-0">
+          <div className="absolute inset-0 bg-black/50 z-10"></div>
+          <div 
+            className="absolute inset-0 bg-cover bg-center"
+            style={{
+              backgroundImage: "url('/images/gh2/image (3).jpg')",
+              filter: "saturate(1.2)"
+            }}
+          ></div>
+          <div className="absolute inset-0 bg-gradient-to-b from-primary/30 to-primary/10 mix-blend-overlay"></div>
+        </div>
+        
+        <div className="relative z-10 text-center space-y-6 px-4 max-w-4xl mx-auto animate-fade-in">
+          <div className="">
+            <h1 className="text-5xl md:text-6xl font-bold tracking-tight text-white drop-shadow-lg shadow-black mb-4">
+              Be part of the revival of Europe
+            </h1>
+            <p className="text-xl text-white max-w-2xl mx-auto font-medium drop-shadow-md mb-6">
+              &quot;Also I heard the voice of the Lord, saying, Whom shall I send, and who will go for us? Then said I, Here am I; send me.&quot; (Isaiah 6:8)
+            </p>
+          </div>
         </div>
       </section>
 
       {/* Main Content */}
-      <section className="py-16 px-4">
+      <section className="py-16 px-4 -mt-2 relative z-20">
         <div className="max-w-3xl mx-auto">
           {/* Pass explicit email and userId to ensure they're used in payment */}
-          <DonateComponent 
-            user={user} 
-            userEmail={userMetadata.email}
-            userId={userMetadata.uid}
-          />          
+          <div className="bg-white rounded-xl shadow-lg border-green-subtle card-hover-effect p-8">
+            <DonateComponent 
+              user={user} 
+              userEmail={userMetadata.email}
+              userId={userMetadata.uid}
+            />
+          </div>         
         </div>
       </section>
 
       {/* Features Section */}
-      <section className="py-16 bg-green-pattern-light">
+      <section className="py-16 bg-green-pattern-light relative z-10">
         <div className="max-w-6xl mx-auto px-4 text-center">
           <h2 className="text-3xl font-bold mb-12 text-gradient-green">Dunamis Greenhouse 2025</h2>
           
@@ -91,7 +114,7 @@ export default function DonatePage() {
                 icon: "💥"
               }
             ].map((feature, index) => (
-              <div key={index} className="bg-white p-6 rounded-xl shadow-md border-green-subtle card-hover-effect">
+              <div key={index} className="bg-white p-6 rounded-xl shadow-lg border-green-subtle card-hover-effect transform transition-all duration-300 hover:-translate-y-1">
                 <div className="text-4xl mb-4 text-primary">{feature.icon}</div>
                 <h3 className="text-xl font-semibold mb-2">{feature.title}</h3>
                 <p className="text-gray-600">{feature.description}</p>
@@ -100,6 +123,8 @@ export default function DonatePage() {
           </div>
         </div>
       </section>
+      
+      {isClient && <Footer />}
     </div>
   );
 } 

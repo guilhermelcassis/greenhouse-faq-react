@@ -1,16 +1,22 @@
 "use client";
 
-import { useState, Suspense } from 'react';
+import { useState, Suspense, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth';
 import { User, Mail, Lock, AlertCircle, ArrowRight } from 'lucide-react';
+import { Footer } from '@/components/Footer';
 
 // Create a wrapper component that uses search params
 function LoginContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { signIn, signInWithGoogle, loading, error } = useAuth();
+  const [isClient, setIsClient] = useState(false);
+  
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
   
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -58,20 +64,35 @@ function LoginContent() {
   
   return (
     <div className="min-h-screen bg-background">
-      {/* Hero Section with gradient background */}
-      <section className="relative h-[30vh] flex items-center justify-center bg-green-gradient-radial">
-        <div className="relative text-center space-y-6 px-4 max-w-4xl mx-auto animate-fade-in">
-          <h1 className="text-5xl md:text-6xl font-bold tracking-tight text-gradient-green">
-            Sign In
-          </h1>
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Welcome back! Enter your credentials to access your account
-          </p>
+      {/* Hero Section with background image */}
+      <section className="relative h-[50vh] flex items-center justify-center overflow-hidden">
+        {/* Background Image */}
+        <div className="absolute inset-0 z-0">
+          <div className="absolute inset-0 bg-black/50 z-10"></div>
+          <div 
+            className="absolute inset-0 bg-cover bg-center"
+            style={{
+              backgroundImage: "url('/images/gh2/image (7).jpg')",
+              filter: "saturate(1.2)"
+            }}
+          ></div>
+          <div className="absolute inset-0 bg-gradient-to-b from-primary/30 to-primary/10 mix-blend-overlay"></div>
+        </div>
+        
+        <div className="relative z-10 text-center space-y-6 px-4 max-w-4xl mx-auto animate-fade-in">
+          <div className="">
+            <h1 className="text-5xl md:text-6xl font-bold tracking-tight text-white drop-shadow-lg shadow-black mb-4">
+              Sign In
+            </h1>
+            <p className="text-xl text-white max-w-2xl mx-auto font-medium drop-shadow-md mb-6">
+              Welcome back! Enter your credentials to access your account
+            </p>
+          </div>
         </div>
       </section>
 
-      <section className="py-16 px-4 flex justify-center">
-        <div className="bg-white rounded-xl shadow-md border-green-subtle card-hover-effect w-full max-w-md overflow-hidden">
+      <section className="py-16 px-4 flex justify-center -mt-2 relative z-10">
+        <div className="bg-white rounded-xl shadow-lg border-green-subtle card-hover-effect w-full max-w-md overflow-hidden">
           <div className="p-6 border-b border-gray-100">
             <div className="flex items-center justify-center mb-2">
               <div className="p-2 bg-primary/10 rounded-full text-primary mr-3">
@@ -201,6 +222,8 @@ function LoginContent() {
           </form>
         </div>
       </section>
+      
+      {isClient && <Footer />}
     </div>
   );
 }
