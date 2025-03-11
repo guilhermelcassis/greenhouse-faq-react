@@ -43,13 +43,13 @@ const testimonials = [
   {
     name: "Guilherme Assis",
     role: "Alumni 2017",
-    text: "Greenhouse was a life-changing experience. I grew so much in my faith and leadership skills!",
+    text: "Before Dunamis Greenhouse I did not believe the gifts of the Holy Spirit were for today. After the school I received the gift of words of knowledge and healing.",
     image: "/images/avatar1.jpg"
   },
   {
-    name: "Eddie Nunes",
-    role: "Ministry Leader",
-    text: "The teachings and community at Greenhouse are amazing. I highly recommend it!",
+    name: "Jalen Carter",
+    role: "Alumni 2024",
+    text: "Greenhouse gave me fresh vision in how to manifest the fullness of the Kingdom of Heaven in the world around me.",
     image: "/images/avatar2.jpg"
   },
   {
@@ -96,7 +96,7 @@ export default function GreenhousePage() {
           <div 
             className="absolute inset-0 bg-cover bg-center"
             style={{
-              backgroundImage: "url('/images/greenhouse/image (15).jpg')",
+              backgroundImage: "url('/images/greenhouse/image (24).jpg')",
               filter: "saturate(1.2)"
             }}
           ></div>
@@ -131,6 +131,46 @@ export default function GreenhousePage() {
         </div>
       </section>
 
+      {/* Vision Section - NEW */}
+      <section className="py-16 px-4 bg-gradient-to-b from-white to-primary/5 relative overflow-hidden">
+        <div className="absolute inset-0 z-0 opacity-10">
+          <div className="absolute top-0 left-0 w-72 h-72 bg-primary rounded-full -ml-36 -mt-36"></div>
+          <div className="absolute bottom-0 right-0 w-72 h-72 bg-primary rounded-full -mr-36 -mb-36"></div>
+        </div>
+        
+        <div className="max-w-5xl mx-auto relative z-10">
+          <div className="text-center mb-10">
+            <h2 className="text-4xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-primary to-emerald-500 inline-block">Our Vision</h2>
+            <div className="w-24 h-1 bg-gradient-to-r from-primary to-emerald-500 mx-auto mt-4"></div>
+          </div>
+          
+          <div className="bg-white p-8 md:p-10 rounded-2xl shadow-lg border border-primary/10 hover:border-primary/20 transition-all duration-300">
+            <p className="text-lg text-slate-700 leading-relaxed mb-8">
+              Dunamis Movement is a para-church movement, with the goal of catalyzing sustainable revival. We want to Awaken a generation to Establish the Culture of the Kingdom of God on Earth and to Transform the society around them.
+            </p>
+            
+            <h3 className="text-2xl font-semibold text-primary mb-4">Our vision:</h3>
+            
+            <div className="grid md:grid-cols-3 gap-8 mt-6">
+              <div className="bg-primary/5 p-6 rounded-xl">
+                <h4 className="text-xl font-bold text-primary mb-3">AWAKEN</h4>
+                <p className="text-slate-700">We want to awaken a generation to live a supernatural lifestyle believing that they will grow in discipleship and leadership.</p>
+              </div>
+              
+              <div className="bg-primary/5 p-6 rounded-xl">
+                <h4 className="text-xl font-bold text-primary mb-3">ESTABLISH</h4>
+                <p className="text-slate-700">While they grow, they establish the culture of the Kingdom of God on Earth through their vocations.</p>
+              </div>
+              
+              <div className="bg-primary/5 p-6 rounded-xl">
+                <h4 className="text-xl font-bold text-primary mb-3">TRANSFORM</h4>
+                <p className="text-slate-700">Through our events, schools and training programs, we have seen a generation being transformed and bring this transformation to the world around them.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Details Section */}
       <section className="py-20 px-4 bg-white relative overflow-hidden">
         {/* Decorative background elements */}
@@ -139,14 +179,14 @@ export default function GreenhousePage() {
         
         <div className="max-w-7xl mx-auto space-y-16 relative z-10">
           <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-primary to-emerald-500 inline-block">Key Information</h2>
+            <h2 className="text-4xl p-2 font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-primary to-emerald-500 inline-block">Key Information</h2>
             <div className="w-24 h-1 bg-gradient-to-r from-primary to-emerald-500 mx-auto mt-4"></div>
           </div>
 
           <div className="grid md:grid-cols-3 gap-8">
             {[
               { title: "Date", content: "July 9-19, 2025", icon: "📅" },
-              { title: "Location", content: "Palermo, Italy", icon: "📍" },
+              { title: "Location", content: "Sicily, Italy", icon: "📍" },
               { title: "Investment", content: "€850 (All Inclusive)", icon: "💰" }
             ].map((item, index) => (
               <div key={index} className="rounded-xl bg-white text-card-foreground shadow-lg border border-primary/10 hover:border-primary/30 transition-all duration-300 hover:-translate-y-1 overflow-hidden group">
@@ -218,7 +258,7 @@ export default function GreenhousePage() {
               </div>
             </div>
             
-            {/* Card 2 - CONTENT */}
+            {/* Card 2 - DAILY ACTIVITIES */}
             <div className="group relative overflow-hidden bg-white dark:bg-slate-800/50 backdrop-blur-sm p-8 md:p-10 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 border border-slate-200/50 dark:border-slate-700/50 hover:border-primary/30 dark:hover:border-primary/30 hover:-translate-y-2">                 
               {/* Card Content */}
               <div className="relative z-10">
@@ -228,10 +268,10 @@ export default function GreenhousePage() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                     </svg>
                   </div>
-                  <h3 className="text-xl md:text-2xl font-bold text-primary dark:text-primary group-hover:text-primary transition-colors duration-300 flex items-center">CONTENT</h3>
+                  <h3 className="text-xl md:text-2xl font-bold text-primary dark:text-primary group-hover:text-primary transition-colors duration-300 flex items-center">DAILY ACTIVITIES</h3>
                 </div>
                 <p className="text-lg text-slate-600 dark:text-slate-300 group-hover:text-slate-800 dark:group-hover:text-slate-200 transition-colors duration-300 leading-relaxed">
-                  More than 20 classes with teachers from Dunamis and guest speakers.
+                  Worship sets, +20 Training Sessions.
                 </p>
               </div>
             </div>
@@ -249,7 +289,7 @@ export default function GreenhousePage() {
                   <h3 className="text-xl md:text-2xl font-bold text-primary dark:text-primary group-hover:text-primary transition-colors duration-300 flex items-center">EMPOWERMENT</h3>
                 </div>
                 <p className="text-lg text-slate-600 dark:text-slate-300 group-hover:text-slate-800 dark:group-hover:text-slate-200 transition-colors duration-300 leading-relaxed">
-                  Specific classes for each sphere of society with leaders who are already established in these areas.
+                  Revival Nights, Impartation, Healing, Prophetic Words, and more.
                 </p>
               </div>
             </div>
@@ -396,44 +436,6 @@ export default function GreenhousePage() {
                 ))}
               </div>
             )}
-          </div>
-        </div>
-      </section>
-
-      {/* Core Values Section */}
-      <section className="py-20 px-4 bg-white relative overflow-hidden">
-        {/* Decorative elements */}
-        <div className="absolute inset-0 bg-gradient-to-b from-white to-primary/5"></div>
-        <div className="relative z-10 max-w-6xl mx-auto text-center">
-          <div className="mb-16">
-            <h2 className="text-4xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-primary to-emerald-500 inline-block">Core Values</h2>
-            <div className="w-24 h-1 bg-gradient-to-r from-primary to-emerald-500 mx-auto mt-4"></div>
-          </div>
-          
-          <div className="grid md:grid-cols-3 gap-8">
-            {[
-              {
-                title: "Revival",
-                description: "The revival of the Church is the revival of Europe. God is calling for revivalists.",
-                icon: "🔥"
-              },
-              {
-                title: "Reformation",
-                description: "We believe in the power of revival and transformation. Spread the Gospel of Kingdom of God.",
-                icon: "📖"
-              },
-              {
-                title: "Supernatural",
-                description: "The gifts of the Holy Spirit are for today. Let's see them manifested in our generation.",
-                icon: "💥"
-              }
-            ].map((feature, index) => (
-              <div key={index} className="bg-white p-8 rounded-xl shadow-lg border border-primary/10 hover:border-primary/30 transition-all duration-300 hover:-translate-y-2 group">
-                <div className="text-5xl mb-6 text-primary w-20 h-20 flex items-center justify-center rounded-full mx-auto group-hover:bg-primary/20 transition-colors duration-300">{feature.icon}</div>
-                <h3 className="text-2xl font-semibold mb-4 text-primary">{feature.title}</h3>
-                <p className="text-slate-600 text-lg">{feature.description}</p>
-              </div>
-            ))}
           </div>
         </div>
       </section>

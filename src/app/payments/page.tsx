@@ -58,7 +58,7 @@ export default function DonatePage() {
           <div 
             className="absolute inset-0 bg-cover bg-center"
             style={{
-              backgroundImage: "url('/images/gh2/image (3).jpg')",
+              backgroundImage: "url('/images/greenhouse/image (12).jpg')",
               filter: "saturate(1.2)"
             }}
           ></div>

@@ -42,7 +42,7 @@ export function Footer() {
           {/* Location */}
           <div className="md:col-span-1">
             <h4 className="text-lg font-semibold text-primary mb-4">Location</h4>
-            <p className="text-slate-600">Via SS 113 Settentrionale Sicula,<br/>90047 Partinico PA,<br/>Italy</p>
+            <p className="text-slate-600">Rua do Centro Cultural, 11,<br/>1700-036 Lisboa,<br/>Portugal</p>
             <a 
               href="https://maps.google.com/?q=Via+SS+113+Settentrionale+Sicula,+90047+Partinico+PA,+Italy" 
               target="_blank" 
@@ -56,7 +56,7 @@ export function Footer() {
         </div>
         
         {/* Bottom Footer - Copyright */}
-        <div className="pt-8 border-t border-primary/10 text-sm text-slate-500 flex flex-col md:flex-row justify-between">
+        <div className="pt-8 border-t border-primary/10 text-sm text-slate-500 flex flex-col md:flex-row justify-between bg-gradient-to-r from-transparent via-primary/5 to-transparent">
           <div>
             <p>© 2025 Dunamis Greenhouse. All rights reserved.</p>
           </div>

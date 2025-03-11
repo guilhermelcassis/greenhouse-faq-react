@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
 import { Search, Calendar, ChevronLeft, ChevronRight, Filter,  CreditCard, FileText, AlertTriangle } from 'lucide-react';
+import { Footer } from '@/components/Footer';
 
 interface BalanceTransaction {
   exchange_rate?: number;
@@ -49,6 +50,7 @@ export default function PaymentHistory() {
   const [payments, setPayments] = useState<Charge[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isClient, setIsClient] = useState(false);
   
   // Filtering and pagination state
   const [searchTerm, setSearchTerm] = useState('');
@@ -118,6 +120,7 @@ export default function PaymentHistory() {
   useEffect(() => {
     // Set default status filter to 'failed' for the failed payments page
     setStatusFilter('failed');
+    setIsClient(true);
   }, []);
 
   const formatDate = (timestamp: number) => {
@@ -236,49 +239,76 @@ export default function PaymentHistory() {
   if (error) {
     return (
       <div className="min-h-screen bg-background">
-        {/* Hero section */}
-        <section className="relative h-[30vh] flex items-center justify-center bg-green-gradient-radial">
-          <div className="relative text-center space-y-6 px-4 max-w-4xl mx-auto animate-fade-in">
-            <h1 className="text-5xl md:text-6xl font-bold tracking-tight text-gradient-green">
+        {/* Hero section with background image */}
+        <section className="relative h-[50vh] flex items-center justify-center overflow-hidden">
+          {/* Background Image */}
+          <div className="absolute inset-0 z-0">
+            <div className="absolute inset-0 bg-black/50 z-10"></div>
+            <div 
+              className="absolute inset-0 bg-cover bg-center"
+              style={{
+                backgroundImage: "url('/images/greenhouse/image (40).jpg')",
+                filter: "saturate(1.2)"
+              }}
+            ></div>
+            <div className="absolute inset-0 bg-gradient-to-b from-primary/30 to-primary/10 mix-blend-overlay"></div>
+          </div>
+          
+          <div className="relative z-10 text-center space-y-6 px-4 max-w-4xl mx-auto animate-fade-in">
+            <h1 className="text-5xl md:text-6xl font-bold tracking-tight text-white drop-shadow-lg shadow-black mb-4">
               Failed Payments
             </h1>
-            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              View and manage all failed payment transactions in one place
+            <p className="text-xl text-white max-w-2xl mx-auto font-medium drop-shadow-md mb-6">
+              View and manage failed payment transactions
             </p>
           </div>
         </section>
         
-        <div className="max-w-4xl mx-auto mt-8 px-4">
-          <div className="bg-white rounded-xl shadow-md border-green-200 p-6 flex items-center">
-            <div className="bg-green-100 p-3 rounded-full text-green-600 mr-4">
+        <div className="max-w-4xl mx-auto mt-8 px-4 py-8">
+          <div className="bg-white rounded-xl shadow-md border-red-200 p-6 flex items-center">
+            <div className="bg-red-100 p-3 rounded-full text-red-600 mr-4">
               <AlertTriangle size={24} />
             </div>
             <div>
-              <h3 className="text-lg font-bold text-green-600 mb-1">Error</h3>
+              <h3 className="text-lg font-bold text-red-600 mb-1">Error</h3>
               <p className="text-gray-700">{error}</p>
             </div>
           </div>
         </div>
+        
+        {isClient && <Footer />}
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Hero section */}
-      <section className="relative h-[30vh] flex items-center justify-center bg-green-gradient-radial">
-        <div className="relative text-center space-y-6 px-4 max-w-4xl mx-auto animate-fade-in">
-          <h1 className="text-5xl md:text-6xl font-bold tracking-tight text-gradient-green">
+      {/* Hero section with background image */}
+      <section className="relative h-[50vh] flex items-center justify-center overflow-hidden">
+        {/* Background Image */}
+        <div className="absolute inset-0 z-0">
+          <div className="absolute inset-0 bg-black/50 z-10"></div>
+          <div 
+            className="absolute inset-0 bg-cover bg-center"
+            style={{
+              backgroundImage: "url('/images/greenhouse/image (40).jpg')",
+              filter: "saturate(1.2)"
+            }}
+          ></div>
+          <div className="absolute inset-0 bg-gradient-to-b from-primary/30 to-primary/10 mix-blend-overlay"></div>
+        </div>
+        
+        <div className="relative z-10 text-center space-y-6 px-4 max-w-4xl mx-auto animate-fade-in">
+          <h1 className="text-5xl md:text-6xl font-bold tracking-tight text-white drop-shadow-lg shadow-black mb-4">
             Failed Payments
           </h1>
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            View and manage all failed payment transactions in one place
+          <p className="text-xl text-white max-w-2xl mx-auto font-medium drop-shadow-md mb-6">
+            View and manage failed payment transactions
           </p>
         </div>
       </section>
 
-      <div className="container mx-auto px-4 py-12">
-        
+      <div className="container mx-auto px-4 py-12 -mt-2 relative z-10">
         {/* Filters */}
         <div className="bg-white p-6 rounded-xl shadow-md border-green-subtle card-hover-effect mb-8">
           <div className="flex items-center mb-4">
@@ -330,7 +360,7 @@ export default function PaymentHistory() {
                     onChange={(e) => setEndDate(e.target.value)}
                   />
                 </div>
-                    <button
+                <button
                   onClick={() => {
                     setSearchTerm('');
                     setStartDate('');
@@ -345,18 +375,13 @@ export default function PaymentHistory() {
               </div>
             </div>
           </div>
-          {/* Second row for items per page and clear filters */}
-          <div className="mt-6 flex flex-col sm:flex-row justify-between items-center">
-            
-
-          </div>
         </div>
                 
         {/* Payments Table */}
         <div className="bg-white rounded-xl shadow-md border-green-subtle card-hover-effect overflow-hidden mb-8">
           <div className="px-6 py-4 border-b border-gray-200 flex items-center">
             <FileText className="text-primary mr-3" size={24} />
-              <h2 className="text-xl font-bold text-gradient-green">Payments</h2>
+            <h2 className="text-xl font-bold text-gradient-green">Payments</h2>
           </div>
           
           {currentItems.length === 0 ? (
@@ -541,6 +566,8 @@ export default function PaymentHistory() {
           )}
         </div>
       </div>
+      
+      {isClient && <Footer />}
     </div>
   );
 } 

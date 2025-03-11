@@ -45,33 +45,6 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Hero Section */}
-      <section className="relative h-[70vh] flex items-center justify-center overflow-hidden">
-        {/* Background Image */}
-        <div className="absolute inset-0 z-0">
-          <div className="absolute inset-0 bg-black/50 z-10"></div>
-          <div 
-            className="absolute inset-0 bg-cover bg-center"
-            style={{
-              backgroundImage: "url('images/greenhouse/image (24).jpg')",
-              filter: "saturate(1.2)"
-            }}
-          ></div>
-          <div className="absolute inset-0 bg-gradient-to-b from-primary/30 to-primary/10 mix-blend-overlay"></div>
-        </div>
-        
-        <div className="relative z-10 text-center space-y-6 px-4 max-w-4xl mx-auto animate-fade-in">
-          <div className="">
-            <h1 className="text-5xl md:text-6xl font-bold tracking-tight text-white drop-shadow-lg shadow-black mb-4">
-              Greenhouse 2025 Q&A
-            </h1>
-            <p className="text-xl text-white max-w-2xl mx-auto font-medium drop-shadow-md mb-6">
-              Ask your questions about Dunamis Greenhouse and get instant answers from our AI assistant.
-            </p>
-          </div>
-        </div>
-      </section>
-
 
       {/* Main Content */}
       <section className="py-20 px-4 bg-white relative overflow-hidden">

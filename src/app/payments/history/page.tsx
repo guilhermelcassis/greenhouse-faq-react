@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
 import { Search, Calendar, ChevronLeft, ChevronRight, Filter, RefreshCw, CreditCard, FileText, DollarSign, Clock, AlertTriangle } from 'lucide-react';
+import { Footer } from '@/components/Footer';
 
 interface BalanceTransaction {
   exchange_rate?: number;
@@ -46,6 +47,7 @@ export default function PaymentHistory() {
   const [payments, setPayments] = useState<Charge[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isClient, setIsClient] = useState(false);
   
   // Filtering and pagination state
   const [searchTerm, setSearchTerm] = useState('');
@@ -134,6 +136,10 @@ export default function PaymentHistory() {
     }
   }, [user, loading, router, fetchPaymentHistory]);
 
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+  
   const formatDate = (timestamp: number) => {
     return new Date(timestamp * 1000).toLocaleDateString();
   };
@@ -337,19 +343,32 @@ export default function PaymentHistory() {
   if (error) {
     return (
       <div className="min-h-screen bg-background">
-        {/* Hero section */}
-        <section className="relative h-[30vh] flex items-center justify-center bg-green-gradient-radial">
-          <div className="relative text-center space-y-6 px-4 max-w-4xl mx-auto animate-fade-in">
-            <h1 className="text-5xl md:text-6xl font-bold tracking-tight text-gradient-green">
+        {/* Hero section with background image */}
+        <section className="relative h-[50vh] flex items-center justify-center overflow-hidden">
+          {/* Background Image */}
+          <div className="absolute inset-0 z-0">
+            <div className="absolute inset-0 bg-black/50 z-10"></div>
+            <div 
+              className="absolute inset-0 bg-cover bg-center"
+              style={{
+                backgroundImage: "url('/images/greenhouse/image (1).jpg')",
+                filter: "saturate(1.2)"
+              }}
+            ></div>
+            <div className="absolute inset-0 bg-gradient-to-b from-primary/30 to-primary/10 mix-blend-overlay"></div>
+          </div>
+          
+          <div className="relative z-10 text-center space-y-6 px-4 max-w-4xl mx-auto animate-fade-in">
+            <h1 className="text-5xl md:text-6xl font-bold tracking-tight text-white drop-shadow-lg shadow-black mb-4">
               Payment History
             </h1>
-            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              View and manage all payment transactions in one place
+            <p className="text-xl text-white max-w-2xl mx-auto font-medium drop-shadow-md mb-6">
+              View and manage all payment transactions
             </p>
           </div>
         </section>
         
-        <div className="max-w-4xl mx-auto mt-8 px-4">
+        <div className="max-w-4xl mx-auto mt-8 px-4 py-8">
           <div className="bg-white rounded-xl shadow-md border-red-200 p-6 flex items-center">
             <div className="bg-red-100 p-3 rounded-full text-red-600 mr-4">
               <AlertTriangle size={24} />
@@ -360,25 +379,40 @@ export default function PaymentHistory() {
             </div>
           </div>
         </div>
+        
+        {isClient && <Footer />}
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Hero section */}
-      <section className="relative h-[30vh] flex items-center justify-center bg-green-gradient-radial">
-        <div className="relative text-center space-y-6 px-4 max-w-4xl mx-auto animate-fade-in">
-          <h1 className="text-5xl md:text-6xl font-bold tracking-tight text-gradient-green">
+      {/* Hero section with background image */}
+      <section className="relative h-[50vh] flex items-center justify-center overflow-hidden">
+        {/* Background Image */}
+        <div className="absolute inset-0 z-0">
+          <div className="absolute inset-0 bg-black/50 z-10"></div>
+          <div 
+            className="absolute inset-0 bg-cover bg-center"
+            style={{
+              backgroundImage: "url('/images/greenhouse/image (1).jpg')",
+              filter: "saturate(1.2)"
+            }}
+          ></div>
+          <div className="absolute inset-0 bg-gradient-to-b from-primary/30 to-primary/10 mix-blend-overlay"></div>
+        </div>
+        
+        <div className="relative z-10 text-center space-y-6 px-4 max-w-4xl mx-auto animate-fade-in">
+          <h1 className="text-5xl md:text-6xl font-bold tracking-tight text-white drop-shadow-lg shadow-black mb-4">
             Payment History
           </h1>
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            View and manage all payment transactions in one place
+          <p className="text-xl text-white max-w-2xl mx-auto font-medium drop-shadow-md mb-6">
+            View and manage all payment transactions
           </p>
         </div>
       </section>
 
-      <div className="container mx-auto px-4 py-12">
+      <div className="container mx-auto px-4 py-12 -mt-2 relative z-10">
         {/* Sync button */}
         <div className="flex justify-end mb-8">
           <div className="flex items-center bg-white rounded-xl shadow-sm border border-green-subtle p-2">
@@ -759,6 +793,8 @@ export default function PaymentHistory() {
           )}
         </div>
       </div>
+      
+      {isClient && <Footer />}
     </div>
   );
 } 

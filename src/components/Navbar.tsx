@@ -26,7 +26,7 @@ export default function Navbar() {
   };
 
   return (
-    <nav className="w-full bg-white border-b-2 border-primary/20 fixed top-0 z-20">
+    <nav className="w-full bg-white border-b-2 border-primary/20 fixed top-0 z-20 bg-[url('/images/pattern-light.png')] bg-repeat">
       <div className="container mx-auto px-4">
         <div className="flex justify-between items-center h-16">
           {/* Logo - simplified */}
@@ -46,7 +46,7 @@ export default function Navbar() {
           <div className="flex md:hidden">
             <button
               onClick={toggleMenu}
-              className="text-white"
+              className="text-primary hover:text-primary/80 transition-all duration-300 p-2 rounded-full bg-gradient-to-r from-primary/10 to-primary/5 hover:from-primary/20 hover:to-primary/10"
               aria-label="Toggle menu"
             >
               {isMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
@@ -59,7 +59,7 @@ export default function Navbar() {
             <NavLink href="/" currentPath={pathname} label="Ask AI" />
             <NavLink href="/faq" currentPath={pathname} label="FAQ" />
             {user && (
-              <NavLink href="/donate" currentPath={pathname} label="Payment" />
+              <NavLink href="/payments" currentPath={pathname} label="Payment" />
             )}
             {user && user.isAdmin && (
               <NavLink href="/payments/history" currentPath={pathname} label="Payment History" />
@@ -70,7 +70,7 @@ export default function Navbar() {
             <Link 
               href="https://form.respondi.app/hefJH0HK" 
               target="_blank"
-              className="px-4 py-1.5 bg-primary text-white text-sm rounded-md hover:bg-primary/90 transition-colors"
+              className="px-4 py-1.5 bg-gradient-to-r from-primary to-emerald-500 text-white text-sm rounded-md hover:from-emerald-500 hover:to-primary transition-all duration-300 transform hover:scale-105 shadow-sm hover:shadow"
             >
               Apply Now
             </Link>
@@ -85,14 +85,14 @@ export default function Navbar() {
               <div className="flex items-center space-x-3">
                 <Link 
                   href="/profile" 
-                  className="px-3 py-1.5 bg-primary text-white text-sm rounded-md hover:bg-primary/90 transition-colors flex items-center"
+                  className="px-3 py-1.5 bg-gradient-to-r from-primary to-emerald-500 text-white text-sm rounded-md hover:from-emerald-500 hover:to-primary transition-all duration-300 transform hover:scale-105 shadow-sm hover:shadow flex items-center"
                 >
                   <User className="h-4 w-4 mr-1" />
                   {user.displayName?.split(' ')[0] || 'Profile'}
                 </Link>
                 <button 
                   onClick={handleSignOut} 
-                  className="px-3 py-1.5 border border-gray-200 text-white text-sm rounded-md hover:bg-gray-50 transition-colors flex items-center"
+                  className="px-3 py-1.5 bg-gradient-to-r from-primary to-emerald-500 text-white text-sm rounded-md hover:from-emerald-500 hover:to-primary transition-all duration-300 transform hover:scale-105 shadow-sm hover:shadow flex items-center"
                 >
                   <LogOut className="h-4 w-4 mr-1" />
                   Sign out
@@ -102,17 +102,11 @@ export default function Navbar() {
               <>
                 <button 
                   onClick={handleSignIn} 
-                  className="px-3 py-1.5 border border-gray-200 text-white text-sm rounded-md hover:bg-primary/80 transition-colors flex items-center"
+                  className="px-4 py-1.5 bg-gradient-to-r from-primary to-emerald-500 text-white text-sm rounded-md hover:from-emerald-500 hover:to-primary transition-all duration-300 transform hover:scale-105 shadow-sm hover:shadow flex items-center"
                 >
                   <LogIn className="h-4 w-4 mr-1" />
                   Sign in
                 </button>
-                <Link 
-                  href="/register"
-                  className="px-3 py-1.5 bg-primary text-white text-sm rounded-md hover:bg-primary/80 transition-colors"
-                >
-                  Sign up
-                </Link>
               </>
             )}
           </div>
@@ -120,13 +114,13 @@ export default function Navbar() {
 
         {/* Mobile Menu (Dropdown) - simplified */}
         {isMenuOpen && (
-          <div className="sm:hidden bg-white border-t-2 border-primary/30">
+          <div className="sm:hidden bg-white border-t-2 border-primary/30 bg-[url('/images/pattern-light.png')] bg-repeat">
             <div className="py-2 space-y-1">
               <NavLink href="/greenhouse" currentPath={pathname} label="About" mobile />
               <NavLink href="/" currentPath={pathname} label="Ask AI" mobile />
               <NavLink href="/faq" currentPath={pathname} label="FAQ" mobile />
               {user && (
-                <NavLink href="/donate" currentPath={pathname} label="Payment" mobile />
+                <NavLink href="/payments" currentPath={pathname} label="Payment" mobile />
               )}
               {user && user.isAdmin && (
                 <NavLink href="/payments/history" currentPath={pathname} label="Payment History" mobile />
@@ -137,7 +131,7 @@ export default function Navbar() {
               <Link 
                 href="https://form.respondi.app/hefJH0HK" 
                 target="_blank"
-                className="mx-2 mt-2 px-3 py-1.5 bg-primary text-white text-sm rounded-md hover:bg-primary/90 transition-colors inline-block"
+                className="mx-2 mt-2 px-3 py-1.5 bg-gradient-to-r from-primary to-emerald-500 text-white text-sm rounded-md hover:from-emerald-500 hover:to-primary transition-all duration-300 transform hover:scale-105 shadow-sm hover:shadow inline-block"
               >
                 Apply Now
               </Link>              
@@ -145,7 +139,7 @@ export default function Navbar() {
                 <div className="pt-2 mt-2 border-t-2 border-primary/30">
                   <Link 
                     href="/profile" 
-                    className="mx-2 px-3 py-1.5 bg-primary text-white text-sm rounded-md hover:bg-primary/90 transition-colors inline-flex items-center"
+                    className="mx-2 px-3 py-1.5 bg-gradient-to-r from-primary to-emerald-500 text-white text-sm rounded-md hover:from-emerald-500 hover:to-primary transition-all duration-300 inline-flex items-center"
                     onClick={() => setIsMenuOpen(false)}
                   >
                     <User className="h-4 w-4 mr-1" />
@@ -154,7 +148,7 @@ export default function Navbar() {
                   <div className="mt-2 mx-2">
                     <button 
                       onClick={handleSignOut} 
-                      className="px-3 py-1.5 border border-gray-200 text-white text-sm rounded-md hover:bg-gray-50 transition-colors inline-flex items-center"
+                      className="px-3 py-1.5 bg-gradient-to-r from-primary to-emerald-500 text-white text-sm rounded-md hover:from-emerald-500 hover:to-primary transition-all duration-300 transform hover:scale-105 shadow-sm hover:shadow inline-flex items-center"
                     >
                       <LogOut className="h-4 w-4 mr-1" />
                       Sign out
@@ -166,20 +160,11 @@ export default function Navbar() {
                   <div className="mx-2">
                     <button 
                       onClick={handleSignIn} 
-                      className="px-3 py-1.5 border border-gray-200 text-white text-sm rounded-md hover:bg-gray-50 transition-colors inline-flex items-center"
+                      className="px-3 py-1.5 bg-gradient-to-r from-primary to-emerald-500 text-white text-sm rounded-md hover:from-emerald-500 hover:to-primary transition-all duration-300 transform hover:scale-105 shadow-sm hover:shadow inline-flex items-center"
                     >
                       <LogIn className="h-4 w-4 mr-1" />
                       Sign in
                     </button>
-                  </div>
-                  <div className="mt-2 mx-2">
-                    <Link 
-                      href="/register"
-                      className="px-3 py-1.5 bg-primary text-white text-sm rounded-md hover:bg-primary/90 transition-colors inline-block"
-                      onClick={() => setIsMenuOpen(false)}
-                    >
-                      Sign up
-                    </Link>
                   </div>
                 </div>
               )}
@@ -210,12 +195,11 @@ function NavLink({
       <Link
         href={href}
         className={`
-          block px-3 py-1.5 mx-2 rounded-md text-sm
+          block px-3 py-1.5 mx-2 rounded-md text-sm transition-all duration-300
           ${isActive 
-            ? 'text-primary font-medium' 
-            : 'text-gray-600 hover:text-primary'
+            ? 'bg-gradient-to-r from-primary/20 to-primary/5 text-primary font-medium' 
+            : 'text-gray-600 hover:text-primary hover:bg-gradient-to-r hover:from-primary/10 hover:to-transparent'
           }
-          transition-colors
         `}
       >
         {label}
@@ -227,16 +211,15 @@ function NavLink({
     <Link
       href={href}
       className={`
-        relative py-1 text-sm
+        relative py-1 text-sm transition-all duration-300 hover:scale-105
         ${isActive 
           ? 'text-primary font-medium' 
           : 'text-gray-600 hover:text-primary'
         }
-        transition-colors
       `}
     >
       {label}
-      {isActive && <span className="absolute bottom-0 left-0 w-full h-1 bg-primary/70"></span>}
+      {isActive && <span className="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-primary to-emerald-500 rounded-t-md"></span>}
     </Link>
   );
 }

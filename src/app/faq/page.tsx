@@ -78,37 +78,43 @@ export default function FAQPage() {
             <div className="w-24 h-1 bg-gradient-to-r from-primary to-emerald-500 mx-auto mt-4"></div>
           </div>
           
-          <div className="space-y-0">
+          <div className="space-y-4">
             {faqData.map((category, categoryIndex) => (
-              <div key={categoryIndex} className="mb-0 border border-gray-200 rounded-lg last:border-b-0">
+              <div key={categoryIndex} className="border border-gray-200 rounded-lg overflow-hidden shadow-sm transition-all duration-300 hover:shadow-md">
                 {/* Category Title - Improved readability */}
                 <button
                   onClick={() => toggleCategory(categoryIndex)}
-                  className="w-full text-left flex justify-between items-center p-4 bg-white rounded-t-lg shadow-sm border border-gray-200 hover:border-primary/30 transition-all duration-300 group"
+                  className={`w-full text-left flex justify-between items-center p-5 rounded-t-lg transition-all duration-300
+                    ${openCategoryIndex === categoryIndex 
+                      ? 'bg-secondary text-white' 
+                      : 'bg-white text-slate-800 hover:bg-gray-50'}`}
                 >
-                  <span className="font-bold text-base text-slate-800">{category.title}</span>
-                  <span className="text-primary bg-gray-100 p-1 rounded-full group-hover:bg-gray-200 transition-colors duration-300">
+                  <span className="font-bold text-base">{category.title}</span>
+                  <span className={`p-2 rounded-full transition-colors duration-300 ${
+                    openCategoryIndex === categoryIndex 
+                      ? 'bg-secondary/20 text-white' 
+                      : 'bg-gray-100 text-primary'}`}>
                     {openCategoryIndex === categoryIndex ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
                   </span>
                 </button>
 
                 {/* Questions (only shown if category is open) */}
                 {openCategoryIndex === categoryIndex && (
-                  <div className="py-4 space-y-2 bg-white border-b border-gray-200 rounded-b-lg shadow-sm px-4">
+                  <div className="py-4 space-y-3 bg-white rounded-b-lg px-5">
                     {category.questions.map((faq, index) => (
                       <div key={index} className="border border-gray-200 rounded-md overflow-hidden bg-white shadow-sm hover:border-gray-300 transition-all duration-300">
                         <button
                           onClick={() => toggleQuestion(`${categoryIndex}-${index}`)}
-                          className={`w-full text-left flex justify-between items-center p-3 bg-emerald-50 transition-colors duration-300 ${
+                          className={`w-full text-left flex justify-between items-center p-4 transition-colors duration-300 ${
                             openQuestionIndex === `${categoryIndex}-${index}` 
-                              ? 'bg-gray-100 text-slate-900 font-medium' 
-                              : 'hover:bg-gray-50'
+                              ? 'bg-secondary/10 text-slate-900 font-medium' 
+                              : 'bg-white hover:bg-gray-50'
                           }`}
                         >
                           <span className="font-medium text-sm text-slate-700">{faq.question}</span>
-                          <span className={`p-1 rounded-full ${
+                          <span className={`p-1.5 rounded-full ${
                             openQuestionIndex === `${categoryIndex}-${index}` 
-                              ? 'bg-gray-200 text-slate-700' 
+                              ? 'bg-secondary/20 text-secondary' 
                               : 'bg-gray-100 text-slate-600'
                           }`}>
                             {openQuestionIndex === `${categoryIndex}-${index}` ? <ChevronUp size={16} /> : <ChevronDown size={16} />}

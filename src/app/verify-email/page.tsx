@@ -2,12 +2,13 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Mail, RefreshCw, CheckCircle } from 'lucide-react';
+import { Mail, RefreshCw, CheckCircle, ArrowLeft } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 import Link from 'next/link';
 import { sendEmailVerification } from 'firebase/auth';
+import { Footer } from '@/components/Footer';
 
-// Create a wrapper component that uses search params
+// Separate client component that uses useSearchParams
 function VerifyEmailContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -16,8 +17,13 @@ function VerifyEmailContent() {
   const [resendDisabled, setResendDisabled] = useState(false);
   const [countdown, setCountdown] = useState(60);
   const [error, setError] = useState<string | null>(null);
+  const [isClient, setIsClient] = useState(false);
   
   const email = searchParams.get('email') || '';
+  
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
   
   // Check if email is verified on load and when currentUser changes
   useEffect(() => {
@@ -65,88 +71,129 @@ function VerifyEmailContent() {
     }
   };
   
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="flex flex-col items-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mb-4"></div>
+          <div className="text-lg text-gray-600">Loading verification page...</div>
+        </div>
+      </div>
+    );
+  }
+  
   return (
     <div className="min-h-screen bg-background">
-      <section className="relative h-[30vh] flex items-center justify-center bg-green-gradient-radial">
-        <div className="relative text-center space-y-6 px-4 max-w-4xl mx-auto animate-fade-in">
-          <h1 className="text-5xl md:text-6xl font-bold tracking-tight text-gradient-green">
+      {/* Hero Section with background image */}
+      <section className="relative h-[50vh] flex items-center justify-center overflow-hidden">
+        {/* Background Image */}
+        <div className="absolute inset-0 z-0">
+          <div className="absolute inset-0 bg-black/50 z-10"></div>
+          <div 
+            className="absolute inset-0 bg-cover bg-center"
+            style={{
+              backgroundImage: "url('/images/gh2/image (5).jpg')",
+              filter: "saturate(1.2)"
+            }}
+          ></div>
+          <div className="absolute inset-0 bg-gradient-to-b from-primary/30 to-primary/10 mix-blend-overlay"></div>
+        </div>
+        
+        <div className="relative z-10 text-center space-y-6 px-4 max-w-4xl mx-auto animate-fade-in">
+          <div className="flex justify-center mb-4">
+            <div className="w-24 h-24 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center">
+              <Mail className="h-16 w-16 text-white" />
+            </div>
+          </div>
+          <h1 className="text-5xl md:text-6xl font-bold tracking-tight text-white drop-shadow-lg shadow-black mb-4">
             Verify Your Email
           </h1>
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+          <p className="text-xl text-white max-w-2xl mx-auto font-medium drop-shadow-md mb-6">
             Just one more step to complete your registration
           </p>
         </div>
       </section>
       
-      <section className="py-16 px-4 flex justify-center">
-        <div className="bg-white rounded-xl shadow-md border-green-subtle card-hover-effect w-full max-w-md overflow-hidden">
-          <div className="p-6 space-y-6">
-            <div className="flex flex-col items-center justify-center text-center">
-              <div className="p-4 bg-primary/10 rounded-full text-primary mb-4">
-                <Mail size={40} />
+      <section className="py-16 px-4 -mt-2 relative z-10">
+        <div className="max-w-md mx-auto">
+          <div className="bg-white p-8 rounded-xl shadow-lg border-green-subtle card-hover-effect">
+            <div className="text-center mb-6">
+              <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Mail className="w-8 h-8 text-primary" />
               </div>
               <h2 className="text-2xl font-bold text-gradient-green mb-2">Check Your Inbox</h2>
-              <p className="text-gray-600">
+              <p className="text-gray-600 mt-2">
                 {"We've sent a verification email to:"}
               </p>
               <p className="font-medium text-gray-800 mt-1">{email}</p>
-              
-              <div className="mt-8 p-4 bg-blue-50 rounded-lg w-full">
-                <p className="text-blue-800 text-sm">
-                  <CheckCircle className="h-5 w-5 inline-block mr-2" />
-                  Click the verification link in the email to activate your account
-                </p>
-              </div>
+            </div>
+            
+            <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-100">
+              <p className="text-blue-800 text-sm flex items-start">
+                <CheckCircle className="h-5 w-5 mr-2 flex-shrink-0 mt-0.5" />
+                <span>Click the verification link in the email to activate your account</span>
+              </p>
             </div>
             
             {error && (
-              <div className="bg-red-50 border border-red-200 text-red-600 p-4 rounded-lg flex items-start">
-                <p className="text-sm">{error}</p>
+              <div className="mt-6 bg-red-50 border border-red-200 text-red-600 p-4 rounded-lg text-sm">
+                {error}
               </div>
             )}
             
             {emailSent && (
-              <div className="bg-green-50 border border-green-200 text-green-600 p-4 rounded-lg flex items-start">
-                <p className="text-sm">Verification email sent! Check your inbox.</p>
+              <div className="mt-6 bg-green-50 border border-green-200 text-green-600 p-4 rounded-lg text-sm">
+                Verification email sent! Check your inbox.
               </div>
             )}
             
-            <div className="space-y-4">
+            <div className="mt-8 space-y-4">
               <button
                 onClick={handleResendVerification}
                 disabled={resendDisabled || loading}
                 className="w-full py-3 px-4 bg-primary text-white rounded-lg hover:bg-primary/90 
-                        flex items-center justify-center gap-2 font-medium
-                        shadow-md hover:shadow-lg transition-all
-                        disabled:opacity-70 disabled:cursor-not-allowed"
+                         flex items-center justify-center gap-2 text-lg font-medium
+                         shadow-md hover:shadow-lg transition-all transform hover:scale-[1.02]
+                         disabled:opacity-70 disabled:transform-none disabled:shadow-none
+                         disabled:cursor-not-allowed"
               >
                 {resendDisabled 
                   ? `Resend available in ${countdown}s` 
                   : 'Resend Verification Email'}
-                {!resendDisabled && <RefreshCw size={18} />}
+                {!resendDisabled && <RefreshCw size={18} className="ml-2" />}
               </button>
               
               <Link 
                 href="/login"
-                className="block w-full text-center py-3 px-4 bg-gray-100 text-gray-700 rounded-lg 
-                         hover:bg-gray-200 font-medium transition-all"
+                className="w-full py-3 px-4 bg-white border border-primary text-primary rounded-lg hover:bg-secondary/80 
+                         transition-colors flex items-center justify-center gap-2 text-lg font-medium
+                         shadow-md hover:shadow-lg"
               >
+                <ArrowLeft size={18} className="mr-2" />
                 Back to Login
               </Link>
             </div>
           </div>
         </div>
       </section>
+      
+      {isClient && <Footer />}
     </div>
   );
 }
 
-// Main component with Suspense boundary
+// Main page component with Suspense
 export default function VerifyEmailPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">
-      <div className="animate-pulse">Loading verification page...</div>
-    </div>}>
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="flex flex-col items-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mb-4"></div>
+          <div className="text-lg text-gray-600">Loading verification page...</div>
+        </div>
+      </div>
+    }>
       <VerifyEmailContent />
     </Suspense>
   );
