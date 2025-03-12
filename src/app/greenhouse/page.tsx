@@ -53,9 +53,9 @@ const testimonials = [
     image: "/images/avatar2.jpg"
   },
   {
-    name: "João Hudson",
-    role: "Missionary",
-    text: "I experienced the Holy Spirit in a powerful way. This school is a must for every believer.",
+    name: "Mafalda Fonseca",
+    role: "Alumni 2022",
+    text: "Greenhouse transformed my view of my calling and identity in God. Before, I doubted I could fulfill His calling, but during the school, I realized He equips us for His purpose.",
     image: "/images/avatar3.jpg"
   }
 ];
@@ -148,9 +148,7 @@ export default function GreenhousePage() {
             <p className="text-lg text-slate-700 leading-relaxed mb-8">
               Dunamis Movement is a para-church movement, with the goal of catalyzing sustainable revival. We want to Awaken a generation to Establish the Culture of the Kingdom of God on Earth and to Transform the society around them.
             </p>
-            
-            <h3 className="text-2xl font-semibold text-primary mb-4">Our vision:</h3>
-            
+                        
             <div className="grid md:grid-cols-3 gap-8 mt-6">
               <div className="bg-primary/5 p-6 rounded-xl">
                 <h4 className="text-xl font-bold text-primary mb-3">AWAKEN</h4>
@@ -271,7 +269,7 @@ export default function GreenhousePage() {
                   <h3 className="text-xl md:text-2xl font-bold text-primary dark:text-primary group-hover:text-primary transition-colors duration-300 flex items-center">DAILY ACTIVITIES</h3>
                 </div>
                 <p className="text-lg text-slate-600 dark:text-slate-300 group-hover:text-slate-800 dark:group-hover:text-slate-200 transition-colors duration-300 leading-relaxed">
-                  Worship sets, +20 Training Sessions.
+                  Worship sets and +20 Training Sessions.
                 </p>
               </div>
             </div>

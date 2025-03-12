@@ -49,7 +49,7 @@ export default function FAQPage() {
           <div 
             className="absolute inset-0 bg-cover bg-center"
             style={{
-              backgroundImage: "url('/images/greenhouse/image (32).jpg')",
+              backgroundImage: "url('/images/greenhouse/image (15).jpg')",
               filter: "saturate(1.2)"
             }}
           ></div>
