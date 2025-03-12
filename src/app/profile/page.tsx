@@ -7,6 +7,22 @@ import { formatDistanceToNow } from 'date-fns';
 import { User, LogOut, CreditCard, Clock, FileText } from 'lucide-react';
 import { Footer } from '@/components/Footer';
 
+// Utility function to convert name to proper case
+function formatName(name: string | null | undefined): string | null | undefined {
+  if (!name) return name;
+  
+  // Check if the name is all uppercase
+  const isAllUppercase = name === name.toUpperCase();
+  
+  if (!isAllUppercase) return name; // Return as is if not all uppercase
+  
+  return name
+    .toLowerCase()
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+}
+
 interface StripePayment {
   id: string;
   amount: number;
@@ -44,6 +60,8 @@ export default function ProfilePage() {
   const [isLoading, setIsLoading] = useState(true);
   const [totalSpent, setTotalSpent] = useState<number>(0);
   const [isClient, setIsClient] = useState(false);
+  const [dbUserName, setDbUserName] = useState<string | null>(null);
+  const [isLoadingName, setIsLoadingName] = useState(false);
   
   // Get required total based on user type
   const getRequiredTotal = () => {
@@ -172,6 +190,54 @@ export default function ProfilePage() {
     }
   }, [user, fetchStripePayments]);
   
+  // Fetch user name from database when email is available but display name is not
+  const fetchUserNameFromDB = useCallback(async () => {
+    if (!user?.email || user?.displayName) return; // Skip if email not available or display name exists
+    
+    try {
+      setIsLoadingName(true);
+      console.log('Fetching user name from database for email:', user.email);
+      
+      // Get the Firebase auth token for authorization
+      const token = await user.getIdToken();
+      
+      // Call the API to fetch user details from database
+      const response = await fetch('/api/user/details', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch user details');
+      }
+      
+      const data = await response.json();
+      console.log('User details from database:', data);
+      
+      // Set the user's name from database if available
+      if (data.name) {
+        const formattedName = formatName(data.name);
+        if (formattedName) {
+          setDbUserName(formattedName);
+        } else {
+          setDbUserName(data.name);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching user name from database:', error);
+    } finally {
+      setIsLoadingName(false);
+    }
+  }, [user]);
+  
+  // Call fetchUserNameFromDB when user is available
+  useEffect(() => {
+    if (user && !user.displayName) {
+      fetchUserNameFromDB();
+    }
+  }, [user, fetchUserNameFromDB]);
+  
   const handleSignOut = async () => {
     try {
       // Sign out from Firebase only
@@ -191,8 +257,7 @@ export default function ProfilePage() {
     );
   }
   
-  // Use data from Firebase auth only
-  const displayName = user?.displayName || 'User';
+  // Use data from Firebase auth and database
   const email = user?.email;
 
   return (
@@ -234,7 +299,16 @@ export default function ProfilePage() {
                   <User size={36} />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-bold text-gradient-green">{displayName}</h2>
+                  <h2 className="text-2xl font-bold text-gradient-green">
+                    {formatName(user?.displayName) || formatName(dbUserName) || (
+                      isLoadingName ? (
+                        <span className="flex items-center">
+                          <span className="animate-pulse bg-secondary/20 h-6 w-32 inline-block rounded mr-2"></span>
+                          <span className="text-gray-500 text-sm font-normal">Loading name...</span>
+                        </span>
+                      ) : 'No Name Provided'
+                    )}
+                  </h2>
                   <p className="text-gray-600">{email}</p>
                 </div>
               </div>
@@ -311,27 +385,7 @@ export default function ProfilePage() {
         </div>
       </section>
 
-      {isClient && (
-        <div className="max-w-5xl mx-auto px-4 mb-8">
-          <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6 text-xs">
-            <details>
-              <summary className="cursor-pointer font-semibold text-gray-700">Debug Information</summary>
-              <div className="mt-4 overflow-x-auto">
-                <p>Total Spent: {totalSpent}</p>
-                <p>Total Payments: {payments.length}</p>
-                {payments.length > 0 && (
-                  <div className="mt-2">
-                    <p className="font-semibold">First Payment:</p>
-                    <pre className="bg-gray-100 p-3 rounded text-xs overflow-auto mt-1">
-                      {JSON.stringify(payments[0], null, 2)}
-                    </pre>
-                  </div>
-                )}
-              </div>
-            </details>
-          </div>
-        </div>
-      )}
+
 
       {/* Payment History */}
       <div className="max-w-5xl mx-auto px-4 mb-16">

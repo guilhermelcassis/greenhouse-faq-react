@@ -117,7 +117,7 @@ export default function Profile() {
       <div className="bg-white rounded-lg shadow-md p-6 mb-6">
         <div className="flex items-center">
           <div>
-            <h1 className="text-2xl font-bold">{user?.displayName || 'User'}</h1>
+            <h1 className="text-2xl font-bold">{user?.displayName || 'No Name Provided'}</h1>
             <p className="text-gray-600">{user?.email}</p>
             <p className="mt-2">
               <span className="font-semibold">Total spent:</span>{' '}
