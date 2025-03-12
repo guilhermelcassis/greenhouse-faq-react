@@ -7,6 +7,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { User, LogOut, CreditCard, Clock, FileText } from 'lucide-react';
 import { Footer } from '@/components/Footer';
 
+
 // Utility function to convert name to proper case
 function formatName(name: string | null | undefined): string | null | undefined {
   if (!name) return name;
@@ -65,6 +66,11 @@ export default function ProfilePage() {
   const [isEditingName, setIsEditingName] = useState(false);
   const [nameInput, setNameInput] = useState<string>('');
   const [isSavingName, setIsSavingName] = useState(false);
+  const [toast, setToast] = useState<{message: string; type: 'success' | 'error' | 'info'; visible: boolean}>({
+    message: '',
+    type: 'info',
+    visible: false
+  });
   
   // Get required total based on user type
   const getRequiredTotal = () => {
@@ -274,11 +280,19 @@ export default function ProfilePage() {
       setDbUserName(formatName(data.name) || data.name);
       setIsEditingName(false);
       
-      // Show success notification (you can implement this separately)
-      alert('Name updated successfully!');
+      // Show personalized success notification
+      setToast({ 
+        message: `Your name has been updated to ${formatName(data.name) || data.name}!`, 
+        type: 'success', 
+        visible: true 
+      });
     } catch (error) {
       console.error('Error updating user name:', error);
-      alert('Failed to update name. Please try again.');
+      setToast({ 
+        message: 'There was a problem updating your name. Please try again.', 
+        type: 'error', 
+        visible: true 
+      });
     } finally {
       setIsSavingName(false);
     }
@@ -290,6 +304,17 @@ export default function ProfilePage() {
       setNameInput(user?.displayName || dbUserName || '');
     }
   }, [isEditingName, user?.displayName, dbUserName]);
+  
+  // Auto-hide toast after delay
+  useEffect(() => {
+    if (toast.visible) {
+      const timer = setTimeout(() => {
+        setToast(prev => ({ ...prev, visible: false }));
+      }, 3000); // Hide after 3 seconds
+      
+      return () => clearTimeout(timer);
+    }
+  }, [toast.visible]);
   
   const handleSignOut = async () => {
     try {
@@ -315,6 +340,53 @@ export default function ProfilePage() {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Toast Notification */}
+      <div 
+        className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-xl max-w-md transform transition-all duration-500 ease-in-out
+          ${toast.visible 
+            ? 'translate-x-0 opacity-100' 
+            : 'translate-x-full opacity-0 pointer-events-none'
+          }
+          ${toast.type === 'success' ? 'bg-gradient-to-r from-green-500 to-green-600 text-white' : 
+            toast.type === 'error' ? 'bg-gradient-to-r from-red-500 to-red-600 text-white' : 
+            'bg-gradient-to-r from-primary to-primary-dark text-white'}`}
+      >
+        <div className="flex items-center">
+          {toast.type === 'success' && (
+            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-white/20 mr-3">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+          )}
+          {toast.type === 'error' && (
+            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-white/20 mr-3">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </div>
+          )}
+          {toast.type === 'info' && (
+            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-white/20 mr-3">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+          )}
+          <div>
+            <p className="font-medium">{toast.message}</p>
+          </div>
+          <button
+            onClick={() => setToast(prev => ({ ...prev, visible: false }))}
+            className="ml-auto text-white/80 hover:text-white transition-colors p-1"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+            </svg>
+          </button>
+        </div>
+      </div>
+      
       {/* Hero Section with background image */}
       <section className="relative h-[50vh] flex items-center justify-center overflow-hidden">
         {/* Background Image */}
