@@ -499,17 +499,6 @@ export default function ProfilePage() {
                       )}
                     </div>
                   )}
-                  {!user?.displayName && !dbUserName && !isLoadingName && !isEditingName && (
-                    <div 
-                      onClick={() => setIsEditingName(true)}
-                      className="inline-flex items-center mt-1 py-1 px-2 bg-primary/5 text-primary hover:bg-primary/10 rounded-md cursor-pointer text-sm transition-colors"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1">
-                        <path d="M12 5v14M5 12h14"></path>
-                      </svg>
-                      Click here to set your name
-                    </div>
-                  )}
                   <p className="text-gray-600 mt-1">{email}</p>
                 </div>
               </div>
