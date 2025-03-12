@@ -32,6 +32,21 @@ export default function ProfilePage() {
   const [totalSpent, setTotalSpent] = useState<number>(0);
   const [isClient, setIsClient] = useState(false);
   
+  // Get required total based on user type
+  const getRequiredTotal = () => {
+    if (!user) return 0;
+    if (user.isApproved) return 850;
+    if (user.isStaff) return 550;
+    return 0;
+  };
+  
+  // Calculate payment completion percentage
+  const calculatePaymentPercentage = () => {
+    const requiredTotal = getRequiredTotal();
+    if (requiredTotal === 0) return 0;
+    return Math.min(100, Math.round((totalSpent / requiredTotal) * 100));
+  };
+  
   useEffect(() => {
     setIsClient(true);
   }, []);
@@ -213,14 +228,40 @@ export default function ProfilePage() {
                     <CreditCard className="text-primary mr-2" size={20} />
                     <p className="text-sm font-medium text-gray-600">Total Spent</p>
                   </div>
-                  <p className="text-3xl font-bold text-gradient-green">
-                    {isLoading ? (
-                      <span className="animate-pulse bg-secondary/20 h-8 w-24 inline-block rounded"></span>
-                    ) : new Intl.NumberFormat('en-US', {
-                      style: 'currency',
-                      currency: 'EUR',
-                    }).format(totalSpent)}
-                  </p>
+                  {isLoading ? (
+                    <div className="animate-pulse bg-secondary/20 h-8 w-24 rounded mb-2"></div>
+                  ) : (
+                    <>
+                      <p className="text-3xl font-bold text-gradient-green">
+                        {new Intl.NumberFormat('en-US', {
+                          style: 'currency',
+                          currency: 'EUR',
+                        }).format(totalSpent)}
+                        {(user?.isApproved || user?.isStaff) && (
+                          <span className="text-lg ml-1 font-medium text-gray-500">
+                            /{new Intl.NumberFormat('en-US', {
+                              style: 'currency',
+                              currency: 'EUR',
+                            }).format(getRequiredTotal())}
+                          </span>
+                        )}
+                      </p>
+                      
+                      {(user?.isApproved || user?.isStaff) && getRequiredTotal() > 0 && (
+                        <div className="mt-4">
+                          <div className="h-3 w-full bg-gray-200 rounded-full overflow-hidden">
+                            <div 
+                              className="h-full bg-gradient-to-r from-primary to-emerald-500 rounded-full transition-all duration-500"
+                              style={{ width: `${calculatePaymentPercentage()}%` }}
+                            ></div>
+                          </div>
+                          <p className="text-sm text-gray-600 mt-1 font-medium">
+                            {calculatePaymentPercentage()}% completed
+                          </p>
+                        </div>
+                      )}
+                    </>
+                  )}
                 </div>
                 
                 <div className="bg-secondary/10 p-6 rounded-xl border border-green-subtle">

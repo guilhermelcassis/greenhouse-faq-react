@@ -46,10 +46,10 @@ export default function Navbar() {
           <div className="flex md:hidden">
             <button
               onClick={toggleMenu}
-              className="text-primary hover:text-primary/80 transition-all duration-300 p-2 rounded-full bg-gradient-to-r from-primary/10 to-primary/5 hover:from-primary/20 hover:to-primary/10"
+              className="text-primary hover:text-primary/80 p-2 bg-transparent hover:bg-transparent focus:bg-transparent active:bg-transparent focus:ring-0 focus:outline-none"
               aria-label="Toggle menu"
             >
-              {isMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+              {isMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
             </button>
           </div>
 
@@ -58,7 +58,7 @@ export default function Navbar() {
             <NavLink href="/greenhouse" currentPath={pathname} label="About" />
             <NavLink href="/" currentPath={pathname} label="Ask AI" />
             <NavLink href="/faq" currentPath={pathname} label="FAQ" />
-            {user && user.isApproved && (
+            {user && (user.isApproved || user.isStaff) && (
               <NavLink href="/payments" currentPath={pathname} label="Payment" />
             )}
             {user && user.isAdmin && (
@@ -114,12 +114,12 @@ export default function Navbar() {
 
         {/* Mobile Menu (Dropdown) - simplified */}
         {isMenuOpen && (
-          <div className="sm:hidden bg-white border-t-2 border-primary/30 bg-[url('/images/pattern-light.png')] bg-repeat">
+          <div className="sm:hidden bg-white border-t-2 border-primary/30">
             <div className="py-2 space-y-1">
               <NavLink href="/greenhouse" currentPath={pathname} label="About" mobile />
               <NavLink href="/" currentPath={pathname} label="Ask AI" mobile />
               <NavLink href="/faq" currentPath={pathname} label="FAQ" mobile />
-              {user && user.isApproved && (
+              {user && (user.isApproved || user.isStaff) && (
                 <NavLink href="/payments" currentPath={pathname} label="Payment" mobile />
               )}
               {user && user.isAdmin && (

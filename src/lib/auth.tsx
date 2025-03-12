@@ -23,6 +23,7 @@ import { User as FirebaseUser } from 'firebase/auth';
 export interface ExtendedUser extends FirebaseUser {
   isAdmin?: boolean;
   isApproved?: boolean;
+  isStaff?: boolean;
 }
 
 interface AuthContextType {
@@ -73,17 +74,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             ? process.env.NEXT_PUBLIC_APPROVED_EMAILS.split(',').map(email => email.trim().toLowerCase())
             : [];
           
+          // Check if user is staff
+          const staffEmails = process.env.NEXT_PUBLIC_STAFF_EMAILS
+            ? process.env.NEXT_PUBLIC_STAFF_EMAILS.split(',').map(email => email.trim().toLowerCase())
+            : [];
+          
           console.log('Admin emails from env:', adminEmails);
           console.log('Approved emails from env:', approvedEmails);
+          console.log('Staff emails from env:', staffEmails);
           console.log('Current user email:', firebaseUser.email);
           
           const isAdmin = adminEmails.includes((firebaseUser.email || '').toLowerCase());
           const isApproved = approvedEmails.includes((firebaseUser.email || '').toLowerCase());
+          const isStaff = staffEmails.includes((firebaseUser.email || '').toLowerCase());
           
-          // Instead of creating a new object, add the isAdmin property directly
+          // Instead of creating a new object, add the properties directly
           // This preserves all the original methods
           (firebaseUser as ExtendedUser).isAdmin = isAdmin;
           (firebaseUser as ExtendedUser).isApproved = isApproved;
+          (firebaseUser as ExtendedUser).isStaff = isStaff;
           
           // Force refresh to get the latest verification status
           await firebaseUser.reload();
