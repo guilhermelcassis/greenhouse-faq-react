@@ -62,6 +62,9 @@ export default function ProfilePage() {
   const [isClient, setIsClient] = useState(false);
   const [dbUserName, setDbUserName] = useState<string | null>(null);
   const [isLoadingName, setIsLoadingName] = useState(false);
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [nameInput, setNameInput] = useState<string>('');
+  const [isSavingName, setIsSavingName] = useState(false);
   
   // Get required total based on user type
   const getRequiredTotal = () => {
@@ -238,6 +241,56 @@ export default function ProfilePage() {
     }
   }, [user, fetchUserNameFromDB]);
   
+  // Handle update of user name
+  const handleUpdateName = async () => {
+    if (!user || !nameInput.trim()) return;
+    
+    try {
+      setIsSavingName(true);
+      
+      // Get the Firebase auth token for authorization
+      const token = await user.getIdToken();
+      
+      // Call the API to update user details in database
+      const response = await fetch('/api/user/update', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          name: nameInput.trim()
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to update user name');
+      }
+      
+      const data = await response.json();
+      console.log('User name update response:', data);
+      
+      // Update the local state with the new name
+      setDbUserName(formatName(data.name) || data.name);
+      setIsEditingName(false);
+      
+      // Show success notification (you can implement this separately)
+      alert('Name updated successfully!');
+    } catch (error) {
+      console.error('Error updating user name:', error);
+      alert('Failed to update name. Please try again.');
+    } finally {
+      setIsSavingName(false);
+    }
+  };
+  
+  // Initialize name input when entering edit mode
+  useEffect(() => {
+    if (isEditingName) {
+      setNameInput(user?.displayName || dbUserName || '');
+    }
+  }, [isEditingName, user?.displayName, dbUserName]);
+  
   const handleSignOut = async () => {
     try {
       // Sign out from Firebase only
@@ -298,18 +351,94 @@ export default function ProfilePage() {
                 <div className="p-3 bg-primary/10 rounded-full text-primary">
                   <User size={36} />
                 </div>
-                <div>
-                  <h2 className="text-2xl font-bold text-gradient-green">
-                    {formatName(user?.displayName) || formatName(dbUserName) || (
-                      isLoadingName ? (
-                        <span className="flex items-center">
-                          <span className="animate-pulse bg-secondary/20 h-6 w-32 inline-block rounded mr-2"></span>
-                          <span className="text-gray-500 text-sm font-normal">Loading name...</span>
-                        </span>
-                      ) : 'No Name Provided'
-                    )}
-                  </h2>
-                  <p className="text-gray-600">{email}</p>
+                <div className={`${isEditingName ? 'w-full' : ''}`}>
+                  {isEditingName ? (
+                    <div className="flex flex-col space-y-2">
+                      <div className="relative">
+                        <input
+                          type="text"
+                          value={nameInput}
+                          onChange={(e) => setNameInput(e.target.value)}
+                          className="w-full text-lg font-medium border border-green-300 rounded-lg px-3 py-2 
+                            focus:outline-none focus:ring-2 focus:ring-primary/50 bg-white shadow-sm"
+                          placeholder="Enter your name"
+                          disabled={isSavingName}
+                          autoFocus
+                        />
+                      </div>
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={handleUpdateName}
+                          disabled={isSavingName || !nameInput.trim()}
+                          className={`flex items-center justify-center px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                            isSavingName || !nameInput.trim()
+                              ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                              : 'bg-primary hover:bg-primary/90 text-white'
+                          }`}
+                          aria-label="Save name"
+                        >
+                          {isSavingName ? (
+                            <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></span>
+                          ) : (
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1">
+                              <path d="M20 6L9 17l-5-5"></path>
+                            </svg>
+                          )}
+                          Save
+                        </button>
+                        <button
+                          onClick={() => setIsEditingName(false)}
+                          disabled={isSavingName}
+                          className={`flex items-center justify-center px-3 py-2 rounded-lg text-sm font-medium
+                            ${isSavingName ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 
+                              'bg-gray-100 hover:bg-gray-200 text-gray-700'}`}
+                          aria-label="Cancel editing"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                          </svg>
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center">
+                      <h2 className="text-2xl font-bold text-gradient-green mr-2">
+                        {formatName(user?.displayName) || formatName(dbUserName) || (
+                          isLoadingName ? (
+                            <span className="flex items-center">
+                              <span className="animate-pulse bg-secondary/20 h-6 w-32 inline-block rounded mr-2"></span>
+                              <span className="text-gray-500 text-sm font-normal">Loading name...</span>
+                            </span>
+                          ) : 'No Name Provided'
+                        )}
+                      </h2>
+                      {!isLoadingName && (
+                        <button
+                          onClick={() => setIsEditingName(true)}
+                          className="flex items-center justify-center p-1.5 rounded-full bg-primary hover:bg-primary/90 text-white transition-colors"
+                          title="Edit name"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path>
+                          </svg>
+                        </button>
+                      )}
+                    </div>
+                  )}
+                  {!user?.displayName && !dbUserName && !isLoadingName && !isEditingName && (
+                    <div 
+                      onClick={() => setIsEditingName(true)}
+                      className="inline-flex items-center mt-1 py-1 px-2 bg-primary/5 text-primary hover:bg-primary/10 rounded-md cursor-pointer text-sm transition-colors"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1">
+                        <path d="M12 5v14M5 12h14"></path>
+                      </svg>
+                      Click here to set your name
+                    </div>
+                  )}
+                  <p className="text-gray-600 mt-1">{email}</p>
                 </div>
               </div>
               
@@ -384,8 +513,6 @@ export default function ProfilePage() {
           </div>
         </div>
       </section>
-
-
 
       {/* Payment History */}
       <div className="max-w-5xl mx-auto px-4 mb-16">
