@@ -58,7 +58,7 @@ export default function Navbar() {
             <NavLink href="/greenhouse" currentPath={pathname} label="About" />
             <NavLink href="/" currentPath={pathname} label="Ask AI" />
             <NavLink href="/faq" currentPath={pathname} label="FAQ" />
-            {user && (
+            {user && user.isApproved && (
               <NavLink href="/payments" currentPath={pathname} label="Payment" />
             )}
             {user && user.isAdmin && (
@@ -119,7 +119,7 @@ export default function Navbar() {
               <NavLink href="/greenhouse" currentPath={pathname} label="About" mobile />
               <NavLink href="/" currentPath={pathname} label="Ask AI" mobile />
               <NavLink href="/faq" currentPath={pathname} label="FAQ" mobile />
-              {user && (
+              {user && user.isApproved && (
                 <NavLink href="/payments" currentPath={pathname} label="Payment" mobile />
               )}
               {user && user.isAdmin && (

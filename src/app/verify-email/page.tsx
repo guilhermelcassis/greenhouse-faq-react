@@ -123,6 +123,7 @@ function VerifyEmailContent() {
                 <Mail className="w-8 h-8 text-primary" />
               </div>
               <h2 className="text-2xl font-bold text-gradient-green mb-2">Check Your Inbox</h2>
+
               <p className="text-gray-600 mt-2">
                 {"We've sent a verification email to:"}
               </p>
@@ -132,7 +133,9 @@ function VerifyEmailContent() {
             <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-100">
               <p className="text-blue-800 text-sm flex items-start">
                 <CheckCircle className="h-5 w-5 mr-2 flex-shrink-0 mt-0.5" />
-                <span>Click the verification link in the email to activate your account</span>
+                <span>
+                  {"If you don't see the email in your inbox, please check your spam or junk folder. Sometimes, verification emails can end up there."}
+                </span>
               </p>
             </div>
             

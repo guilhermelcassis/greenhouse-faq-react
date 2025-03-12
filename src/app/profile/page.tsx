@@ -18,6 +18,9 @@ interface StripePayment {
   description: string | null;
   amount_eur: number | null;
   receipt_url: string | null;
+  billing_details?: {
+    email?: string;
+  };
 }
 
 export default function ProfilePage() {
@@ -65,7 +68,7 @@ export default function ProfilePage() {
             amount_eur: payment.amount_eur,
             currency: payment.currency,
             status: payment.status,
-            email: payment.email,
+            email: payment.email || payment.billing_details?.email,
             receipt_url: payment.receipt_url
           });
         });
@@ -113,14 +116,16 @@ export default function ProfilePage() {
     // Redirect if not logged in (using Firebase only)
     if (!loading && !user) {
       router.push('/login?redirect=/profile');
-      return;
     }
-    
+  }, [user, loading, router]);
+  
+  // Separate useEffect for fetching payments after auth is confirmed
+  useEffect(() => {
     // If user is authenticated, fetch payments
     if (user) {
       fetchStripePayments();
     }
-  }, [user, loading, router, fetchStripePayments]);
+  }, [user, fetchStripePayments]);
   
   const handleSignOut = async () => {
     try {
@@ -133,7 +138,7 @@ export default function ProfilePage() {
     }
   };
   
-  if (loading || (isLoading && user)) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-background flex justify-center items-center">
         <div className="animate-pulse text-lg">Loading...</div>
@@ -209,7 +214,9 @@ export default function ProfilePage() {
                     <p className="text-sm font-medium text-gray-600">Total Spent</p>
                   </div>
                   <p className="text-3xl font-bold text-gradient-green">
-                    {new Intl.NumberFormat('en-US', {
+                    {isLoading ? (
+                      <span className="animate-pulse bg-secondary/20 h-8 w-24 inline-block rounded"></span>
+                    ) : new Intl.NumberFormat('en-US', {
                       style: 'currency',
                       currency: 'EUR',
                     }).format(totalSpent)}
@@ -221,7 +228,11 @@ export default function ProfilePage() {
                     <Clock className="text-primary mr-2" size={20} />
                     <p className="text-sm font-medium text-gray-600">Total Payments</p>
                   </div>
-                  <p className="text-3xl font-bold text-gradient-green">{payments.length}</p>
+                  <p className="text-3xl font-bold text-gradient-green">
+                    {isLoading ? (
+                      <span className="animate-pulse bg-secondary/20 h-8 w-12 inline-block rounded"></span>
+                    ) : payments.length}
+                  </p>
                 </div>
               </div>
             </div>
@@ -237,7 +248,21 @@ export default function ProfilePage() {
             <h2 className="text-2xl font-bold text-gradient-green">Payment History</h2>
           </div>
           
-          {payments.length === 0 ? (
+          {isLoading ? (
+            <div className="p-12 text-center">
+              <div className="animate-pulse flex space-x-4 mb-4 justify-center">
+                <div className="rounded-full bg-secondary/20 h-12 w-12"></div>
+                <div className="flex-1 space-y-4 max-w-md">
+                  <div className="h-4 bg-secondary/20 rounded w-3/4"></div>
+                  <div className="space-y-2">
+                    <div className="h-4 bg-secondary/20 rounded"></div>
+                    <div className="h-4 bg-secondary/20 rounded w-5/6"></div>
+                  </div>
+                </div>
+              </div>
+              <p className="text-gray-500">Loading payment history...</p>
+            </div>
+          ) : payments.length === 0 ? (
             <div className="p-12 text-center">
               <div className="mb-4 text-primary opacity-50">
                 <CreditCard size={48} className="mx-auto" />

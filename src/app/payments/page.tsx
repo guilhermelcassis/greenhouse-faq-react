@@ -89,41 +89,7 @@ export default function DonatePage() {
             />
           </div>         
         </div>
-      </section>
-
-      {/* Features Section */}
-      <section className="py-16 bg-green-pattern-light relative z-10">
-        <div className="max-w-6xl mx-auto px-4 text-center">
-          <h2 className="text-3xl font-bold mb-12 text-gradient-green">Dunamis Greenhouse 2025</h2>
-          
-          <div className="grid md:grid-cols-3 gap-8">
-            {[
-              {
-                title: "Revival",
-                description: "The revival of the Church is the revival of Europe. God is calling for revivalists.",
-                icon: "🔥"
-              },
-              {
-                title: "Reformation",
-                description: "We believe in the power of revival and transformation. Spread the Gospel of Kingdom of God.",
-                icon: "📖"
-              },
-              {
-                title: "Supernatural",
-                description: "The gifts of the Holy Spirit are for today. Let's see them manifested in our generation.",
-                icon: "💥"
-              }
-            ].map((feature, index) => (
-              <div key={index} className="bg-white p-6 rounded-xl shadow-lg border-green-subtle card-hover-effect transform transition-all duration-300 hover:-translate-y-1">
-                <div className="text-4xl mb-4 text-primary">{feature.icon}</div>
-                <h3 className="text-xl font-semibold mb-2">{feature.title}</h3>
-                <p className="text-gray-600">{feature.description}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-      
+      </section>     
       {isClient && <Footer />}
     </div>
   );

@@ -22,6 +22,7 @@ import { User as FirebaseUser } from 'firebase/auth';
 // Extend the Firebase User type
 export interface ExtendedUser extends FirebaseUser {
   isAdmin?: boolean;
+  isApproved?: boolean;
 }
 
 interface AuthContextType {
@@ -67,15 +68,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             ? process.env.NEXT_PUBLIC_ADMIN_EMAILS.split(',').map(email => email.trim().toLowerCase()) 
             : [];
           
+          // Check if user is approved for payments
+          const approvedEmails = process.env.NEXT_PUBLIC_APPROVED_EMAILS
+            ? process.env.NEXT_PUBLIC_APPROVED_EMAILS.split(',').map(email => email.trim().toLowerCase())
+            : [];
+          
           console.log('Admin emails from env:', adminEmails);
+          console.log('Approved emails from env:', approvedEmails);
           console.log('Current user email:', firebaseUser.email);
-          console.log('Is admin check result:', adminEmails.includes((firebaseUser.email || '').toLowerCase()));
           
           const isAdmin = adminEmails.includes((firebaseUser.email || '').toLowerCase());
+          const isApproved = approvedEmails.includes((firebaseUser.email || '').toLowerCase());
           
           // Instead of creating a new object, add the isAdmin property directly
           // This preserves all the original methods
           (firebaseUser as ExtendedUser).isAdmin = isAdmin;
+          (firebaseUser as ExtendedUser).isApproved = isApproved;
           
           // Force refresh to get the latest verification status
           await firebaseUser.reload();
