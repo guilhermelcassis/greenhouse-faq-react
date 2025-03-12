@@ -49,7 +49,7 @@ const testimonials = [
   {
     name: "Jalen Carter",
     role: "Alumni 2024",
-    text: "Greenhouse gave me fresh vision in how to manifest the fullness of the Kingdom of Heaven in the world around me.",
+    text: "Greenhouse gave me fresh vision and tools,  equipping me to manifest the Kingdom in the world around me.",
     image: "/images/avatar2.jpg"
   },
   {
