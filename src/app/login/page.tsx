@@ -35,7 +35,13 @@ function LoginContent() {
       router.push(redirect);
     } catch (error: unknown) {
       if (error instanceof Error) {
-        setFormError(error.message);
+        // Check for Firebase auth/invalid-credential error
+        if (error.message.includes('auth/invalid-credential') || 
+            error.message.includes('auth/user-not-found')) {
+          setFormError("We couldn't find an account with these credentials. Please check your email/password or register for a new account.");
+        } else {
+          setFormError(error.message);
+        }
       } else {
         setFormError('An unknown error occurred');
       }
@@ -53,7 +59,13 @@ function LoginContent() {
       router.push(redirect);
     } catch (error: unknown) {
       if (error instanceof Error) {
-        setFormError(error.message);
+        // Check for Firebase auth/invalid-credential error
+        if (error.message.includes('auth/invalid-credential') || 
+            error.message.includes('auth/user-not-found')) {
+          setFormError("We couldn't find an account with these credentials. Please register for a new account first.");
+        } else {
+          setFormError(error.message);
+        }
       } else {
         setFormError('An unknown error occurred');
       }

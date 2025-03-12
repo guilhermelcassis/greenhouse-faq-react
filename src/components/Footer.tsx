@@ -8,14 +8,20 @@ export function Footer() {
         <div className="grid md:grid-cols-4 gap-12 mb-12">
           {/* Logo and Tagline */}
           <div className="md:col-span-1">
-            <div className="mb-6">
-              <h3 className="text-2xl font-bold text-primary">Dunamis Greenhouse</h3>
-              <div className="w-12 h-1 bg-gradient-to-r from-primary to-emerald-500 mt-2"></div>
+            <div className="mb-2">
+              <h4 className="text-lg font-semibold text-primary">Social Media</h4>
             </div>
-            <div className="flex space-x-4">
+            <div className="flex items-center space-x-4">
               <a href="https://www.instagram.com/dunamiseurope" className="w-10 h-10 rounded-full bg-primary/10 hover:bg-primary/20 flex items-center justify-center text-primary transition-colors">
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg>
               </a>
+              <span className="text-slate-600">Instagram</span>
+            </div>
+            <div className="flex items-center space-x-4">
+              <a href="https://www.youtube.com/watch?v=jU6YIBKp3Wg&list=PLFgexMhoSyJylhZjifRnXHK94BtyXGuSY" className="w-10 h-10 rounded-full bg-primary/10 hover:bg-primary/20 flex items-center justify-center text-primary transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22.54 6.42c-.29-1.08-1.14-1.92-2.22-2.22C19.5 4 12 4 12 4s-7.5 0-8.32.2c-1.08.3-1.93 1.14-2.22 2.22C1 7.5 1 12 1 12s0 4.5.46 5.58c.29 1.08 1.14 1.92 2.22 2.22C4.5 20 12 20 12 20s7.5 0 8.32-.2c1.08-.3 1.93-1.14 2.22-2.22C23 16.5 23 12 23 12s0-4.5-.46-5.58z"></path><polygon points="9.54 15.54 9.54 8.46 15.36 12"></polygon></svg>
+              </a>
+              <span className="text-slate-600">YouTube</span>
             </div>
           </div>
           

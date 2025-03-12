@@ -21,6 +21,19 @@ interface StripePayment {
   billing_details?: {
     email?: string;
   };
+  balance_transaction?: {
+    id: string;
+    amount: number;
+    available_on: number;
+    created: number;
+    currency: string;
+    description: string | null;
+    exchange_rate: number | null;
+    fee: number;
+    net: number;
+    status: string;
+    type: string;
+  };
 }
 
 export default function ProfilePage() {
@@ -109,7 +122,24 @@ export default function ProfilePage() {
           .forEach((payment: StripePayment) => {
             // Check if the payment status is 'succeeded'
             if (payment.status === 'succeeded' && !payment.refunded && !(payment.description?.toLowerCase().includes('refund'))) {
-              const amount = (payment.amount_eur || payment.amount) / 100;
+              // Log the detailed payment information for debugging
+              console.log('Payment details for calculation:', {
+                paymentId: payment.id,
+                currency: payment.currency,
+                amount: payment.amount,
+                amount_eur: payment.amount_eur,
+                balance_transaction: payment.balance_transaction ? {
+                  currency: payment.balance_transaction.currency,
+                  amount: payment.balance_transaction.amount,
+                  exchange_rate: payment.balance_transaction.exchange_rate
+                } : 'N/A'
+              });
+              
+              // Use balance_transaction.amount when available for the actual EUR amount
+              const amount = payment.balance_transaction?.currency === 'eur' 
+                ? payment.balance_transaction.amount / 100 
+                : (payment.currency === 'eur' ? payment.amount / 100 : (payment.amount_eur || payment.amount) / 100);
+              
               console.log(`Adding amount to total: €${amount}`);
               totalEuros += amount;
             }
@@ -281,6 +311,28 @@ export default function ProfilePage() {
         </div>
       </section>
 
+      {isClient && (
+        <div className="max-w-5xl mx-auto px-4 mb-8">
+          <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6 text-xs">
+            <details>
+              <summary className="cursor-pointer font-semibold text-gray-700">Debug Information</summary>
+              <div className="mt-4 overflow-x-auto">
+                <p>Total Spent: {totalSpent}</p>
+                <p>Total Payments: {payments.length}</p>
+                {payments.length > 0 && (
+                  <div className="mt-2">
+                    <p className="font-semibold">First Payment:</p>
+                    <pre className="bg-gray-100 p-3 rounded text-xs overflow-auto mt-1">
+                      {JSON.stringify(payments[0], null, 2)}
+                    </pre>
+                  </div>
+                )}
+              </div>
+            </details>
+          </div>
+        </div>
+      )}
+
       {/* Payment History */}
       <div className="max-w-5xl mx-auto px-4 mb-16">
         <div className="bg-white rounded-xl shadow-lg border-green-subtle card-hover-effect overflow-hidden">
@@ -337,10 +389,17 @@ export default function ProfilePage() {
                       </td>
                       <td className="px-6 py-5 whitespace-nowrap text-sm text-gray-600">{payment.email}</td>
                       <td className="px-6 py-5 whitespace-nowrap text-sm font-medium text-gray-800">
-                        {new Intl.NumberFormat('en-US', {
-                          style: 'currency',
-                          currency: payment.currency.toUpperCase(),
-                        }).format((payment.amount_eur || payment.amount) / 100)}
+                        {payment.balance_transaction?.currency === 'eur' ? (
+                          new Intl.NumberFormat('en-US', {
+                            style: 'currency',
+                            currency: 'EUR',
+                          }).format(payment.balance_transaction.amount / 100)
+                        ) : (
+                          new Intl.NumberFormat('en-US', {
+                            style: 'currency',
+                            currency: payment.currency.toUpperCase(),
+                          }).format((payment.amount_eur || payment.amount) / 100)
+                        )}
                       </td>
                       <td className="px-6 py-5 whitespace-nowrap text-sm">
                         {payment.receipt_url ? ( 
