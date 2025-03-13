@@ -11,12 +11,20 @@ import { Footer } from '@/components/Footer';
 function LoginContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { signIn, signInWithGoogle, loading, error } = useAuth();
+  const { signIn, signInWithGoogle, loading, error, user } = useAuth();
   const [isClient, setIsClient] = useState(false);
   
   useEffect(() => {
     setIsClient(true);
   }, []);
+  
+  // Redirect if already logged in
+  useEffect(() => {
+    if (!loading && user) {
+      console.log('User already logged in, redirecting to profile page');
+      router.push('/profile');
+    }
+  }, [user, loading, router]);
   
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -32,7 +40,11 @@ function LoginContent() {
     
     try {
       await signIn(email, password);
-      router.push(redirect);
+      // Allow time for Firebase auth state to update before manual redirect
+      setTimeout(() => {
+        console.log('Redirecting to:', redirect);
+        router.push(redirect);
+      }, 500); // Short delay to ensure auth state updates
     } catch (error: unknown) {
       if (error instanceof Error) {
         // Check for Firebase auth/invalid-credential error
@@ -56,7 +68,11 @@ function LoginContent() {
     
     try {
       await signInWithGoogle();
-      router.push(redirect);
+      // Allow time for Firebase auth state to update before manual redirect
+      setTimeout(() => {
+        console.log('Redirecting to:', redirect);
+        router.push(redirect);
+      }, 500); // Short delay to ensure auth state updates
     } catch (error: unknown) {
       if (error instanceof Error) {
         // Check for Firebase auth/invalid-credential error

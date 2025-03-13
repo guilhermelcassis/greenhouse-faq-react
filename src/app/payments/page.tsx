@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
 import DonateComponent from '@/components/Donate';
 import { Footer } from '@/components/Footer';
+import { toast } from 'react-hot-toast';
 
 export default function DonatePage() {
   const { user, loading } = useAuth();
@@ -21,6 +22,13 @@ export default function DonatePage() {
       if (!user) {
         // Redirect to login if not authenticated
         router.push('/login?callbackUrl=/payments');
+      } else if (!(user.isApproved || user.isStaff || user.isAdmin)) {
+        // Redirect non-approved users to profile page
+        toast.error('You need to be an approved student to access payments', {
+          duration: 5000,
+          id: 'access-denied',
+        });
+        router.push('/profile');
       } else {
         // Create user metadata to pass to donation component
         setUserMetadata({
@@ -43,8 +51,8 @@ export default function DonatePage() {
     );
   }
   
-  // Don't render anything if not authenticated - the useEffect will redirect
-  if (!user || !userMetadata) {
+  // Don't render anything if not authenticated or not approved - the useEffect will redirect
+  if (!user || !userMetadata || !(user.isApproved || user.isStaff || user.isAdmin)) {
     return null;
   }
   

@@ -34,3 +34,32 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+# User Role Management
+
+## Overview
+User roles (Admin, Approved Students, Staff) are now managed in Firestore instead of environment variables for better security. This prevents sensitive email addresses from being exposed in client-side code.
+
+## Setup Instructions
+
+1. Create a service account key in Firebase console:
+   - Go to Project Settings > Service Accounts
+   - Click "Generate new private key"
+   - Save the downloaded file as `serviceAccountKey.json` in the project root
+
+2. Add your first admin user using the bootstrap script:
+   ```
+   node scripts/bootstrap-admin.js your-admin-email@example.com
+   ```
+
+3. Log in with the admin email you added to access the Admin dashboard.
+
+4. Use the Admin dashboard to manage other user roles:
+   - Add/remove admin users
+   - Add/remove approved students
+   - Add/remove staff members
+
+## Security Notes
+- User roles are now stored in the `userEmails` collection in Firestore
+- No sensitive data is exposed in environment variables
+- Role checks happen on both client and server sides for complete security

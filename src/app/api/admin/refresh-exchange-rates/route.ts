@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/firebase-admin';
+import { db as adminDb } from '@/lib/firebase-admin';
 import { db } from '@/lib/firebase';
 import { collection, query, getDocs, doc, updateDoc, where } from 'firebase/firestore';
 import Stripe from 'stripe';
@@ -7,10 +8,52 @@ import Stripe from 'stripe';
 // Collection name
 const PAYMENTS_COLLECTION = 'payments';
 
-// Same admin emails
-const adminEmails = process.env.NEXT_PUBLIC_ADMIN_EMAILS 
-  ? process.env.NEXT_PUBLIC_ADMIN_EMAILS.split(',').map(email => email.trim().toLowerCase()) 
-  : [];
+// Verify the user is authenticated and is an admin
+async function verifyAdmin(token: string) {
+  try {
+    // Verify the Firebase token
+    const decodedToken = await auth.verifyIdToken(token);
+    
+    // Get user email from token
+    const userEmail = decodedToken.email || '';
+    if (!userEmail) {
+      return { isAuthorized: false, error: 'User email not found in token' };
+    }
+    
+    // Check if user is admin from Firestore
+    const userEmailsRef = adminDb.collection('userEmails');
+    // Query for users with admin role
+    const adminQuery = userEmailsRef
+      .where('email', '==', userEmail.toLowerCase());
+    
+    const adminSnapshot = await adminQuery.get();
+    
+    // Check if any of the user's roles includes 'admin'
+    let isAdmin = false;
+    if (!adminSnapshot.empty) {
+      const userData = adminSnapshot.docs[0].data();
+      // Look for admin role in either the legacy 'type' field or the new 'roles' array
+      isAdmin = (userData.type === 'admin') || 
+                (Array.isArray(userData.roles) && userData.roles.includes('admin'));
+    }
+    
+    console.log('Admin verification from Firestore:', { 
+      userEmail, 
+      isAdmin,
+      hasCustomClaim: decodedToken.isAdmin
+    });
+    
+    // Check if user is admin either by Firestore or by custom claim
+    if (!isAdmin && !decodedToken.isAdmin) {
+      return { isAuthorized: false, error: 'Unauthorized: User is not an admin' };
+    }
+
+    return { isAuthorized: true, userEmail };
+  } catch (error) {
+    console.error('Error verifying admin:', error);
+    return { isAuthorized: false, error: 'Error verifying admin status' };
+  }
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -22,12 +65,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
-    const decodedToken = await auth.verifyIdToken(token);
-    const userEmail = decodedToken.email;
+    // Verify admin access
+    const { isAuthorized, error, userEmail } = await verifyAdmin(token);
     
-    if (!userEmail || !adminEmails.includes(userEmail.toLowerCase())) {
-      return NextResponse.json({ error: 'Unauthorized - Admin access required' }, { status: 403 });
+    if (!isAuthorized) {
+      return NextResponse.json({ error }, { status: 403 });
     }
+    
+    console.log(`Authenticated admin: ${userEmail}`);
     
     // Initialize Stripe
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {

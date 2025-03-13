@@ -48,13 +48,49 @@ function RegisterContent() {
     setIsSubmitting(true);
     
     try {
-      await signUp(formData.email, formData.password, '');
+      // First check if the email is pre-approved in the system
+      const isApproved = await checkEmailApproved(formData.email);
+      
+      if (!isApproved) {
+        setFormError(
+          'This email is not authorized to register. You must be pre-approved to create an account. ' +
+          'Please apply using the form link below or contact the administration for access.'
+        );
+        setIsSubmitting(false);
+        return;
+      }
+      
+      // If email is approved, proceed with signup
+      await signUp(formData.email, formData.password, formData.name);
       router.push('/verify-email?email=' + encodeURIComponent(formData.email));
     } catch (error: unknown) {
       const typedError = error as Error & { message?: string };
       setFormError(typedError.message || 'Failed to sign up');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+  
+  // Function to check if the email is pre-approved
+  const checkEmailApproved = async (email: string): Promise<boolean> => {
+    try {
+      const response = await fetch('/api/auth/check-approval', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: email.toLowerCase() }),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to check email approval status');
+      }
+      
+      const data = await response.json();
+      return data.approved;
+    } catch (error) {
+      console.error('Error checking email approval:', error);
+      throw error;
     }
   };
   
@@ -81,7 +117,7 @@ function RegisterContent() {
               Create Account
             </h1>
             <p className="text-xl text-white max-w-2xl mx-auto font-medium drop-shadow-md mb-6">
-              Join our community and be part of the Greenhouse 2025 initiative
+              Join our community and be part of the Greenhouse 2025
             </p>
           </div>
         </div>
@@ -208,6 +244,19 @@ function RegisterContent() {
                   Sign in
                 </Link>
               </p>
+              <div className="mt-4 bg-blue-50 p-3 rounded-lg text-sm text-blue-800">
+                <p className="mb-1 font-medium">Important Note:</p>
+                <p>Registration is limited to pre-approved users only. To get access, please fill out the 
+                  <a 
+                    href="https://form.respondi.app/hefJH0HK" 
+                    target="_blank"
+                    className="text-primary font-medium mx-1 hover:text-primary/70 transition-colors"
+                  >
+                    application form
+                  </a>
+                  or contact the administration.
+                </p>
+              </div>
             </div>
           </form>
         </div>

@@ -14,7 +14,8 @@ import {
   setPersistence,
   browserLocalPersistence
 } from 'firebase/auth';
-import { auth } from './firebase';
+import { auth, db } from './firebase';
+import { collection, query, where, getDocs, addDoc } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { deleteCookie } from 'cookies-next';
 import { User as FirebaseUser } from 'firebase/auth';
@@ -46,6 +47,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
+  // Function to check user roles from Firestore
+  const checkUserRoles = async (email: string): Promise<{isAdmin: boolean, isApproved: boolean, isStaff: boolean}> => {
+    try {
+      if (!email) {
+        return { isAdmin: false, isApproved: false, isStaff: false };
+      }
+      
+      const userEmailsRef = collection(db, 'userEmails');
+      
+      // Get the user document by email (single query for better performance)
+      const userQuery = query(userEmailsRef, where('email', '==', email.toLowerCase()));
+      const userDocs = await getDocs(userQuery);
+      
+      if (userDocs.empty) {
+        console.log('No user document found for email:', email);
+        return { isAdmin: false, isApproved: false, isStaff: false };
+      }
+      
+      // Get user data and roles
+      const userData = userDocs.docs[0].data();
+      
+      // Check for roles array in the new format or type field in legacy format
+      const userRoles: string[] = userData.roles || (userData.type ? [userData.type] : []);
+      
+      // Check if user has each role
+      const isAdmin = userRoles.includes('admin');
+      const isApproved = userRoles.includes('approved');
+      const isStaff = userRoles.includes('staff');
+      
+      console.log('User roles check from Firestore:', { email, userRoles, isAdmin, isApproved, isStaff });
+      
+      return { isAdmin, isApproved, isStaff };
+    } catch (error) {
+      console.error('Error checking user roles:', error);
+      return { isAdmin: false, isApproved: false, isStaff: false };
+    }
+  };
+
   useEffect(() => {
     // Set persistence to LOCAL for better session handling
     setPersistence(auth, browserLocalPersistence)
@@ -59,34 +98,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         try {
-          // If user is logged in but you're in the login page, redirect to profile
-          if (window.location.pathname === '/login') {
+          // If user is logged in but you're on the login or register page, redirect to profile
+          if (window.location.pathname === '/login' || window.location.pathname === '/register') {
+            console.log('User is logged in and on login/register page, redirecting to profile');
             router.push('/profile');
           }
           
-          // Check if user is admin
-          const adminEmails = process.env.NEXT_PUBLIC_ADMIN_EMAILS 
-            ? process.env.NEXT_PUBLIC_ADMIN_EMAILS.split(',').map(email => email.trim().toLowerCase()) 
-            : [];
+          // Check user roles from Firestore
+          const userEmail = firebaseUser.email || '';
+          const { isAdmin, isApproved, isStaff } = await checkUserRoles(userEmail);
           
-          // Check if user is approved for payments
-          const approvedEmails = process.env.NEXT_PUBLIC_APPROVED_EMAILS
-            ? process.env.NEXT_PUBLIC_APPROVED_EMAILS.split(',').map(email => email.trim().toLowerCase())
-            : [];
-          
-          // Check if user is staff
-          const staffEmails = process.env.NEXT_PUBLIC_STAFF_EMAILS
-            ? process.env.NEXT_PUBLIC_STAFF_EMAILS.split(',').map(email => email.trim().toLowerCase())
-            : [];
-          
-          console.log('Admin emails from env:', adminEmails);
-          console.log('Approved emails from env:', approvedEmails);
-          console.log('Staff emails from env:', staffEmails);
-          console.log('Current user email:', firebaseUser.email);
-          
-          const isAdmin = adminEmails.includes((firebaseUser.email || '').toLowerCase());
-          const isApproved = approvedEmails.includes((firebaseUser.email || '').toLowerCase());
-          const isStaff = staffEmails.includes((firebaseUser.email || '').toLowerCase());
+          console.log(`Setting user roles for ${userEmail}:`, { isAdmin, isApproved, isStaff });
           
           // Instead of creating a new object, add the properties directly
           // This preserves all the original methods
@@ -114,7 +136,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             console.log('Session cookie set successfully');
           }
         } catch (error) {
-          console.error('Error checking admin status:', error);
+          console.error('Error checking user roles:', error);
           setUser(firebaseUser as ExtendedUser);
         }
       } else {
@@ -151,6 +173,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await updateProfile(userCredential.user, {
           displayName: name
         });
+        
+        // Create a user document in Firestore
+        try {
+          // Check if user already exists in users collection
+          const usersQuery = query(
+            collection(db, 'users'),
+            where('email', '==', email.toLowerCase())
+          );
+          
+          const usersSnapshot = await getDocs(usersQuery);
+          
+          if (usersSnapshot.empty) {
+            // User doesn't exist, create a new record
+            console.log('Creating new user record in Firestore for:', email);
+            
+            await addDoc(collection(db, 'users'), {
+              email: email.toLowerCase(),
+              name: name,
+              displayName: name,
+              uid: userCredential.user.uid,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString()
+            });
+            
+            console.log('User record created successfully');
+          }
+          
+          // Note: We don't create entries in userEmails collection anymore
+          // Users must be pre-approved in that collection to register
+          
+        } catch (firestoreError) {
+          console.error('Error creating user record in Firestore:', firestoreError);
+          // We don't want to fail registration if Firestore update fails
+          // The user can be created later via the profile page
+        }
+        
         await firebaseSendEmailVerification(userCredential.user);
       }
     } catch (error: unknown) {

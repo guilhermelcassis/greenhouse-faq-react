@@ -682,14 +682,16 @@ export default function ProfilePage() {
         <div className="max-w-4xl mx-auto px-4 text-center">
           <h2 className="text-2xl font-bold mb-6 text-gradient-green">Be ready for Revival</h2>          
           <div className="flex justify-center">
-            <button
-              onClick={() => router.push('/payments')}
-              className="py-3 px-6 bg-primary text-white rounded-lg hover:bg-primary/90 
-                        transition-colors shadow-md hover:shadow-lg flex items-center gap-2"
-            >
-              <CreditCard size={18} />
-              Make Another Payment
-            </button>
+            {user && (user.isApproved || user.isStaff || user.isAdmin) && (
+              <button
+                onClick={() => router.push('/payments')}
+                className="py-3 px-6 bg-primary text-white rounded-lg hover:bg-primary/90 
+                          transition-colors shadow-md hover:shadow-lg flex items-center gap-2"
+              >
+                <CreditCard size={18} />
+                Make Another Payment
+              </button>
+            )}
           </div>
         </div>
       </section>

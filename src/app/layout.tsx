@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
 import { AuthProvider } from '@/lib/auth';
+import { Toaster } from 'react-hot-toast';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
@@ -25,6 +26,7 @@ export default function RootLayout({
         <AuthProvider>
           <Navbar />
           <main className="pt-16">{children}</main>
+          <Toaster position="top-center" />
         </AuthProvider>
       </body>
     </html>

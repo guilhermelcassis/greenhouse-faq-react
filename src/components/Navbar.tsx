@@ -67,6 +67,9 @@ export default function Navbar() {
             {user && user.isAdmin && (
               <NavLink href="/payments/failed" currentPath={pathname} label="Failed Payments" />
             )}
+            {user && user.isAdmin && (
+              <NavLink href="/admin" currentPath={pathname} label="Admin" />
+            )}
             <Link 
               href="https://form.respondi.app/hefJH0HK" 
               target="_blank"
@@ -127,6 +130,9 @@ export default function Navbar() {
               )}
               {user && user.isAdmin && (
                 <NavLink href="/payments/failed" currentPath={pathname} label="Failed Payments" mobile />
+              )}
+              {user && user.isAdmin && (
+                <NavLink href="/admin" currentPath={pathname} label="Admin" mobile />
               )}
               <Link 
                 href="https://form.respondi.app/hefJH0HK" 

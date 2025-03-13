@@ -1,13 +1,9 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/firebase-admin';
-import { db } from '@/lib/firebase';
+import { db as firebaseDb } from '@/lib/firebase';
+import { db as adminDb } from '@/lib/firebase-admin';
 import { collection, getDocs, query, limit, startAfter, DocumentData, QueryDocumentSnapshot, getDoc, doc } from 'firebase/firestore';
 import { stripe } from '@/lib/stripe';
-
-// Same admin emails
-const adminEmails = process.env.NEXT_PUBLIC_ADMIN_EMAILS 
-  ? process.env.NEXT_PUBLIC_ADMIN_EMAILS.split(',').map(email => email.trim().toLowerCase()) 
-  : [];
 
 interface BillingDetails {
   email: string;
@@ -55,6 +51,53 @@ interface Charge {
 // Collection name
 const PAYMENTS_COLLECTION = 'payments';
 
+// Verify the user is authenticated and is an admin
+async function verifyAdmin(token: string) {
+  try {
+    // Verify the Firebase token
+    const decodedToken = await auth.verifyIdToken(token);
+    
+    // Get user email from token
+    const userEmail = decodedToken.email || '';
+    if (!userEmail) {
+      return { isAuthorized: false, error: 'User email not found in token' };
+    }
+    
+    // Check if user is admin from Firestore
+    const userEmailsRef = adminDb.collection('userEmails');
+    // Query for users with admin role
+    const adminQuery = userEmailsRef
+      .where('email', '==', userEmail.toLowerCase());
+    
+    const adminSnapshot = await adminQuery.get();
+    
+    // Check if any of the user's roles includes 'admin'
+    let isAdmin = false;
+    if (!adminSnapshot.empty) {
+      const userData = adminSnapshot.docs[0].data();
+      // Look for admin role in either the legacy 'type' field or the new 'roles' array
+      isAdmin = (userData.type === 'admin') || 
+                (Array.isArray(userData.roles) && userData.roles.includes('admin'));
+    }
+    
+    console.log('Admin verification from Firestore:', { 
+      userEmail, 
+      isAdmin,
+      hasCustomClaim: decodedToken.isAdmin
+    });
+    
+    // Check if user is admin either by Firestore or by custom claim
+    if (!isAdmin && !decodedToken.isAdmin) {
+      return { isAuthorized: false, error: 'Unauthorized: User is not an admin' };
+    }
+
+    return { isAuthorized: true, userEmail };
+  } catch (error) {
+    console.error('Error verifying admin:', error);
+    return { isAuthorized: false, error: 'Error verifying admin status' };
+  }
+}
+
 export async function GET(request: Request) {
   try {
     // Get the authorization token from the request headers
@@ -66,21 +109,14 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Unauthorized - No token provided' }, { status: 401 });
     }
     
-    try {
-      // Verify the Firebase token
-      const decodedToken = await auth.verifyIdToken(token);
-      const userEmail = decodedToken.email;
-      
-      // Check if user is admin
-      if (!userEmail || !adminEmails.includes(userEmail.toLowerCase())) {
-        return NextResponse.json({ error: 'Unauthorized - Admin access required' }, { status: 403 });
-      }
-      
-      console.log(`Authenticated admin: ${userEmail}`);
-    } catch (authError) {
-      console.error('Firebase auth error:', authError);
-      return NextResponse.json({ error: 'Unauthorized - Invalid token' }, { status: 401 });
+    // Verify admin access
+    const { isAuthorized, error, userEmail } = await verifyAdmin(token);
+    
+    if (!isAuthorized) {
+      return NextResponse.json({ error }, { status: 403 });
     }
+    
+    console.log(`Authenticated admin: ${userEmail}`);
     
     // Fetch from Firestore instead of Stripe
     console.log('Fetching ALL payment data from Firestore database');
@@ -94,7 +130,7 @@ export async function GET(request: Request) {
       // Initial query - don't use 'created' field as it might be missing in some documents
       // Use document ID instead which every document has
       let q = query(
-        collection(db, PAYMENTS_COLLECTION),
+        collection(firebaseDb, PAYMENTS_COLLECTION),
         limit(batchSize)
       );
       
@@ -111,7 +147,7 @@ export async function GET(request: Request) {
         // If we have a last document from previous batch, start after it
         if (lastDoc) {
           q = query(
-            collection(db, PAYMENTS_COLLECTION),
+            collection(firebaseDb, PAYMENTS_COLLECTION),
             startAfter(lastDoc),
             limit(batchSize)
           );
@@ -219,7 +255,7 @@ export async function GET(request: Request) {
       });
       
       // When returning payment history data, include the last sync time
-      const syncStatusDoc = await getDoc(doc(db, 'system', 'syncStatus'));
+      const syncStatusDoc = await getDoc(doc(firebaseDb, 'system', 'syncStatus'));
       const lastSyncTime = syncStatusDoc.exists() ? syncStatusDoc.data()?.lastSyncTime : null;
       
       // Combine both data sources
@@ -305,3 +341,4 @@ export async function GET(request: Request) {
     }
   }
 }
+
