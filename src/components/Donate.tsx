@@ -245,7 +245,7 @@ function CheckoutFormContent({ totalAmount }: { totalAmount: number }) {
       const { error, paymentIntent } = await stripe.confirmPayment({
         elements,
         confirmParams: {
-          return_url: `${window.location.origin}/donate/success`,
+          return_url: `${window.location.origin}/payments/success`,
         },
         redirect: 'if_required',
       });
@@ -254,7 +254,7 @@ function CheckoutFormContent({ totalAmount }: { totalAmount: number }) {
         setErrorMessage(error.message || 'An error occurred with your payment');
       } else if (paymentIntent && paymentIntent.status === 'succeeded') {
         // Payment successful
-        router.push(`/donate/success?payment_intent=${paymentIntent.id}`);
+        router.push(`/payments/success?payment_intent=${paymentIntent.id}`);
       }
     } catch (err) {
       console.error('Payment error:', err);

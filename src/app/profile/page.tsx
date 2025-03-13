@@ -683,7 +683,7 @@ export default function ProfilePage() {
           <h2 className="text-2xl font-bold mb-6 text-gradient-green">Be ready for Revival</h2>          
           <div className="flex justify-center">
             <button
-              onClick={() => router.push('/donate')}
+              onClick={() => router.push('/payments')}
               className="py-3 px-6 bg-primary text-white rounded-lg hover:bg-primary/90 
                         transition-colors shadow-md hover:shadow-lg flex items-center gap-2"
             >

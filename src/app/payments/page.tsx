@@ -20,7 +20,7 @@ export default function DonatePage() {
     if (!loading) {
       if (!user) {
         // Redirect to login if not authenticated
-        router.push('/login?callbackUrl=/donate');
+        router.push('/login?callbackUrl=/payments');
       } else {
         // Create user metadata to pass to donation component
         setUserMetadata({
