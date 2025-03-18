@@ -116,7 +116,7 @@ export default function Home() {
         <div className="absolute inset-0 bg-gradient-to-b from-white to-primary/5"></div>
         <div className="relative z-10 max-w-6xl mx-auto text-center">
           <div className="mb-16">
-            <h2 className="text-4xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-primary to-emerald-500 inline-block">Why Use Our Q&A System?</h2>
+            <h2 className="text-4xl p-2 font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-primary to-emerald-500 inline-block">Why Use Our Q&A System?</h2>
             <div className="w-24 h-1 bg-gradient-to-r from-primary to-emerald-500 mx-auto mt-4"></div>
           </div>
           

@@ -64,33 +64,79 @@ async function verifyAdmin(request: NextRequest) {
 // GET: Fetch all user emails
 export async function GET(request: NextRequest) {
   try {
-    // Verify the user is an admin
-    const { isAuthorized, error } = await verifyAdmin(request);
-    if (!isAuthorized) {
-      return NextResponse.json({ error }, { status: 401 });
+    // Get token from request headers
+    let token: string | null = null;
+    const authHeader = request.headers.get('Authorization');
+    if (authHeader?.startsWith('Bearer ')) {
+      token = authHeader.substring(7);
     }
 
-    // Fetch user emails from Firestore
-    const usersRef = db.collection('userEmails');
-    const snapshot = await usersRef.get();
+    // If no token is provided, return unauthorized
+    if (!token) {
+      return NextResponse.json({ error: 'Unauthorized - No token provided' }, { status: 401 });
+    }
+
+    // Verify admin access
+    const { isAuthorized, error } = await verifyAdmin(request);
+    if (!isAuthorized) {
+      return NextResponse.json({ error }, { status: 403 });
+    }
+    
+    console.log('Fetching all users from Firestore userEmails collection');
+    
+    // Fetch all users directly from Firestore collection
+    const userEmailsRef = db.collection('userEmails');
+    const snapshot = await userEmailsRef.get();
     
     const users = snapshot.docs.map(doc => {
       const data = doc.data();
-      // Handle both new (roles array) and legacy (type field) formats
-      const roles = data.roles || (data.type ? [data.type] : []);
+      
+      // Handle both legacy and new format for roles
+      let roles: string[] = [];
+      if (Array.isArray(data.roles)) {
+        roles = data.roles;
+      } else if (data.type) {
+        roles = [data.type];
+      }
+      
+      // Use timestamp if available, otherwise use added_timestamp or addedAt
+      let timestamp = null;
+      if (data.addedAt) {
+        timestamp = data.addedAt;
+      } else if (data.added_timestamp) {
+        timestamp = data.added_timestamp;
+      } else {
+        timestamp = new Date().toISOString();
+      }
+      
+      // Determine user status based on roles
+      const isAdmin = roles.includes('admin');
+      const isStaff = roles.includes('staff');
+      const isApproved = roles.includes('approved');
       
       return {
         id: doc.id,
         email: data.email,
-        roles,
-        addedAt: data.addedAt
+        name: data.name || null,
+        displayName: data.name || null,
+        roles: roles,
+        isAdmin,
+        isStaff,
+        isApproved,
+        createdAt: timestamp ? new Date(timestamp).getTime() : undefined,
+        added_timestamp: timestamp
       };
     });
-
-    return NextResponse.json({ users });
-  } catch (error) {
-    console.error('Error fetching user emails:', error);
-    return NextResponse.json({ error: 'Failed to fetch user emails' }, { status: 500 });
+    
+    console.log(`Retrieved ${users.length} users from Firestore`);
+    
+    return NextResponse.json({
+      users: users
+    });
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
+    console.error('Error fetching users:', errorMessage);
+    return NextResponse.json({ error: 'Failed to fetch users', details: errorMessage }, { status: 500 });
   }
 }
 

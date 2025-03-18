@@ -3,8 +3,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
-import { Search, Calendar, ChevronLeft, ChevronRight, Filter,  CreditCard, FileText, AlertTriangle } from 'lucide-react';
+import { Search, Calendar, ChevronLeft, ChevronRight, Filter,  CreditCard, FileText, AlertTriangle, RefreshCw } from 'lucide-react';
 import { Footer } from '@/components/Footer';
+import { getCache, setCache, clearCache } from '@/lib/cache-utils';
 
 interface BalanceTransaction {
   exchange_rate?: number;
@@ -60,6 +61,20 @@ export default function PaymentHistory() {
       setIsLoading(true);
       setError(null); // Clear any previous errors
       
+      // Check cache first
+      const cacheKey = 'payment_history_cache';
+      const cachedPayments = getCache<Charge[]>(cacheKey);
+      
+      if (cachedPayments) {
+        console.log(`Using cached payment history data (${cachedPayments.length} charges)`);
+        setPayments(cachedPayments);
+        setIsLoading(false);
+        return;
+      }
+      
+      // No valid cache, fetch from API
+      console.log('No valid cache found, fetching payment history from API');
+      
       // Get Firebase token for auth
       const token = await user?.getIdToken();
       console.log('Got authentication token, fetching payment history from database...');
@@ -83,6 +98,8 @@ export default function PaymentHistory() {
         setPayments([]);
       } else {
         console.log(`Successfully loaded ${data.charges.length} charges from database`);
+        // Cache the result
+        setCache(cacheKey, data.charges);
         setPayments(data.charges || []);
       }
     } catch (error) {
@@ -92,6 +109,12 @@ export default function PaymentHistory() {
       setIsLoading(false);
     }
   }, [user]);
+
+  // Add a function to clear cache and fetch fresh data
+  const refreshPaymentData = async () => {
+    clearCache('payment_history_cache');
+    fetchPaymentHistory();
+  };
 
   useEffect(() => {
     if (!loading) {
@@ -368,6 +391,17 @@ export default function PaymentHistory() {
                   Clear Filters
                 </button>
               </div>
+            </div>
+
+            {/* Refresh button */}
+            <div className="flex items-end">
+              <button
+                onClick={refreshPaymentData}
+                className="w-full px-6 py-3 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors font-medium shadow-sm hover:shadow flex items-center justify-center gap-2"
+              >
+                <RefreshCw size={16} />
+                Refresh Data
+              </button>
             </div>
           </div>
         </div>

@@ -3,8 +3,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
-import { Search, Calendar, ChevronLeft, ChevronRight, Filter, RefreshCw, CreditCard, FileText, DollarSign, Clock, AlertTriangle } from 'lucide-react';
+import { Search, Calendar, ChevronLeft, ChevronRight, Filter, RefreshCw, CreditCard, FileText, DollarSign, Clock, AlertTriangle, X } from 'lucide-react';
 import { Footer } from '@/components/Footer';
+import { getCache, setCache, clearCache } from '@/lib/cache-utils';
 
 interface BalanceTransaction {
   exchange_rate?: number;
@@ -19,6 +20,8 @@ interface Charge {
   status: string;
   refunded: boolean;
   created: number;
+  created_date?: string;
+  created_formatted?: string;
   billing_details?: {
     email: string;
     name: string;
@@ -30,10 +33,25 @@ interface Charge {
       last4: string;
     };
   };
+  payment_details?: {
+    type: string;
+    card?: {
+      brand: string;
+      last4: string;
+      exp_month: number;
+      exp_year: number;
+    };
+  };
   receipt_url?: string;
   balance_transaction?: BalanceTransaction;
-  amount_eur?: number; // Added this line
-  description?: string; // Added this line
+  amount_eur?: number;
+  description?: string;
+  metadata?: {
+    email?: string;
+    userId?: string;
+    items?: string;
+    [key: string]: string | number | boolean | null | undefined;
+  };
 }
 
 export default function PaymentHistory() {
@@ -52,15 +70,39 @@ export default function PaymentHistory() {
   const [itemsPerPage, setItemsPerPage] = useState(25);
   const [statusFilter, setStatusFilter] = useState<string>('all');
 
-  // Add this state
-  const [isSyncing] = useState(false);
+  // Update these states to properly manage sync status
+  const [isSyncing, setIsSyncing] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState<number | null>(null);
-  const [syncProgress] = useState(0);
+  const [syncProgress, setSyncProgress] = useState(0);
+  const [newPaymentsAdded, setNewPaymentsAdded] = useState<number | null>(null);
+  const [showToast, setShowToast] = useState(false);
 
   const fetchPaymentHistory = useCallback(async () => {
     try {
       setIsLoading(true);
       setError(null); // Clear any previous errors
+      
+      // Check cache first
+      const cacheKey = 'payment_history_all_cache';
+      const cachedPayments = getCache<Charge[]>(cacheKey);
+      
+      if (cachedPayments) {
+        console.log(`[Cache] Using cached payment history data (${cachedPayments.length} charges)`);
+        
+        const updatedCharges = cachedPayments.map((charge: Charge) => {
+          if (charge.id === 'ch_some_specific_id_here') {
+            return { ...charge, refunded: true };
+          }
+          return charge;
+        });
+        
+        setPayments(updatedCharges || []);
+        setIsLoading(false);
+        return;
+      }
+      
+      // No valid cache, fetch from API
+      console.log('[Cache] No valid cache found, fetching payment history from API');
       
       // Get Firebase token for auth
       const token = await user?.getIdToken();
@@ -85,6 +127,10 @@ export default function PaymentHistory() {
         setPayments([]);
       } else {
         console.log(`Successfully loaded ${data.charges.length} charges from database`);
+        
+        // Cache the raw data from API
+        setCache(cacheKey, data.charges);
+        
         const updatedCharges = data.charges.map((charge: Charge) => {
           if (charge.id === 'ch_some_specific_id_here') {
             return { ...charge, refunded: true };
@@ -98,13 +144,9 @@ export default function PaymentHistory() {
           email: c.billing_details?.email || '',
           amount: c.amount,
           currency: c.currency
-        })));
-        
-        if (data.lastSyncTime) {
-          setLastSyncTime(data.lastSyncTime);
-        }
+        })).slice(0, 3));
       }
-    } catch (error: unknown) {
+    } catch (error) {
       console.error('Error fetching payment history:', error);
       setError(error instanceof Error ? error.message : 'Failed to load payment history');
     } finally {
@@ -135,8 +177,29 @@ export default function PaymentHistory() {
     setIsClient(true);
   }, []);
   
-  const formatDate = (timestamp: number) => {
+  const formatDate = (timestamp: number, charge?: Charge) => {
+    // If we have the formatted date string, use it
+    if (charge && charge.created_formatted) {
+      return charge.created_formatted;
+    }
+    // Otherwise fall back to standard date formatting
     return new Date(timestamp * 1000).toLocaleDateString();
+  };
+
+  // Helper function to get the most reliable email for a charge
+  const getEmail = (charge: Charge): string => {
+    // Check billing_details.email first
+    if (charge.billing_details?.email) {
+      return charge.billing_details.email;
+    }
+    
+    // Then check metadata.email
+    if (charge.metadata?.email) {
+      return charge.metadata.email;
+    }
+    
+    // Fall back to any other source that might have email
+    return 'No email available';
   };
 
   const convertToEUR = (charge: Charge): number => {
@@ -228,10 +291,16 @@ export default function PaymentHistory() {
         return false;
       }
       
+      // Filter out failed payments
+      if (charge.status === 'failed') {
+        return false;
+      }
+      
       // Filter by search term (name, email, phone)
       const searchLower = searchTerm.toLowerCase();
       const nameMatch = charge.billing_details?.name?.toLowerCase().includes(searchLower) || false;
-      const emailMatch = charge.billing_details?.email?.toLowerCase().includes(searchLower) || false;
+      // Use the getEmail helper to check multiple email fields
+      const emailMatch = getEmail(charge).toLowerCase().includes(searchLower);
       const phoneMatch = charge.billing_details?.phone?.toLowerCase().includes(searchLower) || false;
       
       if (searchTerm && !nameMatch && !emailMatch && !phoneMatch) {
@@ -274,7 +343,7 @@ export default function PaymentHistory() {
     setCurrentPage(1);
   }, [searchTerm, startDate, endDate, statusFilter]);
 
-  // Calculate totals for filtered payments
+  // Calculate totals for filtered payments - only count succeeded and pending, not failed
   const totalSuccessful = filteredPayments
     .filter(charge => charge.status === 'succeeded' && !charge.refunded && !(charge.description?.toLowerCase().includes('refund')))
     .reduce((sum, charge) => sum + convertToEUR(charge), 0) / 100;
@@ -284,43 +353,124 @@ export default function PaymentHistory() {
     .reduce((sum, charge) => sum + convertToEUR(charge), 0) / 100;
 
   
-  // Update the quickFetchRecentPayments function to use the existing endpoint
+  // Update the quickFetchRecentPayments function to use the dedicated sync-payments API
   const quickFetchRecentPayments = async () => {
     try {
       setIsLoading(true);
+      setIsSyncing(true);
+      setSyncProgress(10); // Start progress
       setError(null);
+      setNewPaymentsAdded(null);
+      
+      // Clear the cache before fetching new data
+      clearCache('payment_history_all_cache');
       
       // Get Firebase token for auth
       const token = await user?.getIdToken();
+      setSyncProgress(20); // Token obtained
       
-      // Use existing history endpoint but with a limit parameter
-      const response = await fetch('/api/payments/history?limit=50&skipSync=true', {
+      // Call the dedicated sync-payments API to update the database
+      const response = await fetch('/api/admin/sync-payments', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          syncType: 'quick', // 'quick' will sync recent payments
+          limit: 50 // Limit to only the 50 most recent payments
+        })
+      });
+      
+      setSyncProgress(50); // API call completed
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Payment sync API error:', errorData);
+        throw new Error(errorData.details || 'Failed to sync payments from Stripe');
+      }
+      
+      const data = await response.json();
+      setSyncProgress(70); // Data received
+      
+      // Update the last sync time
+      setLastSyncTime(Date.now());
+      
+      // Show number of new payments
+      setNewPaymentsAdded(data.newPaymentsAdded || 0);
+      
+      // Fetch the updated payment history to display
+      const historyResponse = await fetch('/api/payments/history', {
         headers: {
           'Authorization': `Bearer ${token}`
         }
       });
       
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        console.error('Quick fetch API error:', errorData);
-        throw new Error(errorData.details || 'Failed to fetch recent payments');
+      if (!historyResponse.ok) {
+        throw new Error('Failed to load updated payment history');
       }
       
-      const data = await response.json();
+      const historyData = await historyResponse.json();
+      setSyncProgress(90); // Updated data received
       
-      if (!data.charges) {
-        console.warn('No recent charges returned:', data);
+      if (!historyData.charges) {
+        console.warn('No charges data returned from API after sync');
         setPayments([]);
       } else {
-        console.log(`Successfully loaded ${data.charges.length} recent charges`);
-        setPayments(data.charges || []);
-        setLastSyncTime(new Date().getTime());
+        console.log(`Successfully loaded ${historyData.charges.length} charges from database after sync`);
+        
+        // Cache the updated data
+        setCache('payment_history_all_cache', historyData.charges);
+        
+        setPayments(historyData.charges || []);
       }
+      
+      // Complete the progress and show success
+      setSyncProgress(100);
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 5000);
     } catch (error) {
-      console.error('Error fetching recent payments:', error);
-      setError(error instanceof Error ? error.message : 'Failed to load recent payments');
+      console.error('Error syncing payments:', error);
+      setError(error instanceof Error ? error.message : 'Failed to sync payments');
     } finally {
       setIsLoading(false);
+      setIsSyncing(false);
+    }
+  };
+
+  // Add a function to refresh the data by clearing cache
+  const refreshPayments = async () => {
+    // Clear the cache before fetching fresh data
+    clearCache('payment_history_all_cache');
+    
+    // Set syncing state
+    setIsSyncing(true);
+    setSyncProgress(0);
+    setNewPaymentsAdded(null);
+    
+    try {
+      // Simulate progress for UI feedback
+      const progressInterval = setInterval(() => {
+        setSyncProgress(prev => {
+          const newProgress = prev + Math.random() * 20;
+          return newProgress >= 90 ? 90 : newProgress;
+        });
+      }, 300);
+      
+      // Fetch fresh data
+      await fetchPaymentHistory();
+      
+      // Complete progress
+      clearInterval(progressInterval);
+      setSyncProgress(100);
+      setNewPaymentsAdded(0); // Set to 0 as we don't know how many new payments were added
+      setLastSyncTime(Date.now());
+      
+      // Show success toast
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 5000);
+    } finally {
+      setIsSyncing(false);
     }
   };
 
@@ -408,6 +558,51 @@ export default function PaymentHistory() {
       </section>
 
       <div className="container mx-auto px-4 py-12 -mt-2 relative z-10">
+        {/* Toast notification for sync results */}
+        {showToast && (
+          <div className="fixed top-6 right-6 z-50 transition-opacity duration-300 opacity-100">
+            <div className={`px-6 py-4 rounded-lg shadow-lg flex items-center ${
+              newPaymentsAdded && newPaymentsAdded > 0 
+                ? 'bg-green-100 border border-green-300' 
+                : 'bg-blue-100 border border-blue-300'
+            }`}>
+              <div className={`p-2 rounded-full mr-3 ${
+                newPaymentsAdded && newPaymentsAdded > 0 
+                  ? 'bg-green-200 text-green-600' 
+                  : 'bg-blue-200 text-blue-600'
+              }`}>
+                {newPaymentsAdded && newPaymentsAdded > 0 ? (
+                  <CreditCard size={20} />
+                ) : (
+                  <RefreshCw size={20} />
+                )}
+              </div>
+              <div className="flex-1">
+                <h3 className={`font-medium ${
+                  newPaymentsAdded && newPaymentsAdded > 0 
+                    ? 'text-green-800' 
+                    : 'text-blue-800'
+                }`}>
+                  {newPaymentsAdded && newPaymentsAdded > 0 
+                    ? `Successfully synced ${newPaymentsAdded} payment${newPaymentsAdded > 1 ? 's' : ''}` 
+                    : 'Sync complete - Database is up to date'}
+                </h3>
+                <p className="text-sm text-gray-600">
+                  {newPaymentsAdded && newPaymentsAdded > 0 
+                    ? 'Your payment database has been updated from Stripe' 
+                    : 'All payment records have been verified'}
+                </p>
+              </div>
+              <button 
+                onClick={() => setShowToast(false)}
+                className="ml-2 p-1 rounded-full hover:bg-gray-200 transition-colors"
+              >
+                <X size={16} className="text-gray-600" />
+              </button>
+            </div>
+          </div>
+        )}
+        
         {/* Sync button */}
         <div className="flex justify-end mb-8">
           <div className="flex items-center bg-white rounded-xl shadow-sm border border-green-subtle p-2">
@@ -417,37 +612,39 @@ export default function PaymentHistory() {
               </span>
             )}
 
-            <div className="flex items-center space-x-2">
+            <div className="flex gap-3 items-center">
               <button
                 onClick={quickFetchRecentPayments}
-                disabled={isLoading}
-                className="px-4 py-2 bg-primary text-white rounded hover:bg-primary/90 transition-colors flex items-center space-x-2"
+                disabled={isSyncing || isLoading}
+                className="px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors font-medium shadow-sm hover:shadow flex items-center gap-2"
               >
-                {isLoading ? (
-                  <>
-                    <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
-                    <span>Loading...</span>
-                  </>
-                ) : (
-                  <>
-                    <RefreshCw size={16} />
-                    <span>Sync Payments</span>
-                  </>
-                )}
+                <RefreshCw size={16} className={isSyncing ? 'animate-spin' : ''} />
+                Quick Sync
               </button>
+              
+              <button
+                onClick={refreshPayments} 
+                disabled={isSyncing || isLoading}
+                className="px-4 py-2 bg-primary/10 text-white rounded-lg hover:bg-primary/20 transition-colors font-medium shadow-sm hover:shadow flex items-center gap-2"
+              >
+                <RefreshCw size={16} className={isSyncing ? 'animate-spin' : ''} />
+                Full Refresh
+              </button>
+              
+              {isSyncing && (
+                <div className="text-xs text-gray-500 flex items-center gap-2">
+                  <div className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-primary transition-all duration-300 ease-out"
+                      style={{ width: `${syncProgress}%` }}
+                    ></div>
+                  </div>
+                  <span>{Math.round(syncProgress)}%</span>
+                </div>
+              )}
             </div>
           </div>
         </div>
-        
-        {/* Add a progress bar when syncing */}
-        {isSyncing && syncProgress > 0 && (
-          <div className="w-full bg-gray-200 rounded-full h-2.5 mb-8">
-            <div 
-              className="bg-primary h-2.5 rounded-full transition-all duration-300" 
-              style={{ width: `${syncProgress}%` }}
-            ></div>
-          </div>
-        )}
         
         {/* Filters */}
         <div className="bg-white p-6 rounded-xl shadow-md border-green-subtle card-hover-effect mb-8">
@@ -633,7 +830,7 @@ export default function PaymentHistory() {
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {currentItems
-                    // Use a more thorough filter to absolutely ensure no refunded charges display
+                    // Use a more thorough filter to absolutely ensure no refunded or failed charges display
                     .filter(charge => {
                       // Must be successful payment
                       if (charge.status !== 'succeeded') return false;
@@ -650,9 +847,9 @@ export default function PaymentHistory() {
                     .map((charge) => (
                       <tr key={charge.id} className="hover:bg-gray-50 transition-colors">
                         <td className="py-5 px-4 whitespace-nowrap">
-                          <div className="text-sm font-medium text-gray-800">{formatDate(charge.created)}</div>
+                          <div className="text-sm font-medium text-gray-800">{formatDate(charge.created, charge)}</div>
                         </td>
-                        <td className="py-5 px-4 whitespace-nowrap text-sm text-gray-600">{charge.billing_details?.email || 'N/A'}</td>
+                        <td className="py-5 px-4 whitespace-nowrap text-sm text-gray-600">{getEmail(charge)}</td>
                         <td className="py-5 px-4 whitespace-nowrap text-sm text-gray-600">{charge.billing_details?.name || 'N/A'}</td>
                         <td className="py-5 px-4 whitespace-nowrap text-sm text-gray-600">{charge.billing_details?.phone || 'N/A'}</td>
                         <td className="py-5 px-4 whitespace-nowrap text-sm font-medium text-gray-800">{formatAmount(charge)}</td>

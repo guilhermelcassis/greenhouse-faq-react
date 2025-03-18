@@ -70,6 +70,9 @@ export default function Navbar() {
             {user && user.isAdmin && (
               <NavLink href="/admin" currentPath={pathname} label="Admin" />
             )}
+            {user && user.isAdmin && (
+              <NavLink href="/admin/students" currentPath={pathname} label="Students" />
+            )}
             <Link 
               href="https://form.respondi.app/hefJH0HK" 
               target="_blank"
@@ -133,6 +136,9 @@ export default function Navbar() {
               )}
               {user && user.isAdmin && (
                 <NavLink href="/admin" currentPath={pathname} label="Admin" mobile />
+              )}
+              {user && user.isAdmin && (
+                <NavLink href="/admin/students" currentPath={pathname} label="Students" mobile />
               )}
               <Link 
                 href="https://form.respondi.app/hefJH0HK" 

@@ -1,5 +1,5 @@
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
+import { NextResponse } from 'next/dist/server/web/spec-extension/response';
+import type { NextRequest } from 'next/dist/server/web/spec-extension/request';
 import { auth } from '@/lib/firebase-admin';
 
 // This function can be marked `async` if using `await` inside
@@ -30,7 +30,8 @@ export async function middleware(request: NextRequest) {
     } catch (error) {
       // Invalid session cookie, clear it
       const response = NextResponse.next();
-      response.cookies.delete('session');
+      // Create a new response with the cookie deleted
+      response.headers.set('Set-Cookie', 'session=; Max-Age=0; Path=/');
       
       // If trying to access a protected route, redirect to login
       if (isPathProtected) {

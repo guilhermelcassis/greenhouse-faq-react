@@ -128,13 +128,14 @@ export async function POST(request: NextRequest) {
     // Parse request body to get sync options
     const body = await request.json().catch(() => ({}));
     const syncType = body.syncType || 'quick'; // Default to quick sync
+    const paymentLimit = body.limit || (syncType === 'full' ? 0 : 50); // Default limit: 50 for quick sync, no limit for full
     
     // Initialize Stripe
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
       apiVersion: '2025-02-24.acacia',
     });
     
-    console.log(`Starting comprehensive sync of ${syncType === 'full' ? 'ALL' : 'recent'} payments to Firestore...`);
+    console.log(`Starting ${syncType} sync of ${paymentLimit ? `last ${paymentLimit}` : 'ALL'} payments to Firestore...`);
     
     // Update sync status to show progress has started
     await updateSyncStatus({
@@ -158,8 +159,10 @@ export async function POST(request: NextRequest) {
     // Determine how many records to fetch per batch
     const batchSize = 100; // Stripe API limit is 100
     
-    // Process multiple batches if doing a full sync
-    const maxBatches = syncType === 'full' ? 50 : 10; // Up to 5000 for full, 1000 for quick
+    // Process multiple batches based on sync type and limit
+    // For quick sync with limit, use fewer batches
+    const maxBatches = syncType === 'full' ? 50 : (paymentLimit ? Math.ceil(paymentLimit / batchSize) : 10);
+    
     let processedCount = 0;
     let errorCount = 0;
     
@@ -169,11 +172,17 @@ export async function POST(request: NextRequest) {
     let hasMoreCharges = true;
     
     // Change the sorting to get newest first
-    while (hasMoreCharges && chCurrentBatch <= maxBatches) {
+    while (hasMoreCharges && chCurrentBatch <= maxBatches && (paymentLimit === 0 || processedCount < paymentLimit)) {
       console.log(`Fetching batch ${chCurrentBatch} of charges...`);
       
+      // Calculate how many items to fetch in this batch
+      const currentBatchSize = paymentLimit > 0 ? 
+        Math.min(batchSize, paymentLimit - processedCount) : 
+        batchSize;
+      
+      // Get charges created in the last 24 hours first
       const charges: Stripe.ApiList<Stripe.Charge> = await stripe.charges.list({
-        limit: batchSize,
+        limit: currentBatchSize,
         expand: ['data.balance_transaction'],
         // Get charges created in the last 24 hours first
         created: {
@@ -184,7 +193,9 @@ export async function POST(request: NextRequest) {
       
       if (!charges.data || charges.data.length === 0) {
         hasMoreCharges = false;
-        console.log('No more charges to process.');
+        console.log(paymentLimit > 0 ? 
+          `Reached limit of ${paymentLimit} recent payments.` : 
+          'Reached end of recent charges.');
         continue;
       }
       
@@ -204,7 +215,7 @@ export async function POST(request: NextRequest) {
           if (email) {
             email = email.toLowerCase();
             
-            // Create the payment document
+            // Create the payment document with improved structure
             const paymentDoc = {
               id: charge.id,
               stripe_id: charge.id,
@@ -217,17 +228,35 @@ export async function POST(request: NextRequest) {
               status: charge.status,
               refunded: charge.refunded || false,
               created: charge.created,
-              email: email,
+              // Remove duplicate email field at top level
+              created_date: new Date(charge.created * 1000).toISOString(),
+              created_formatted: new Date(charge.created * 1000).toLocaleString('en-US', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+              }),
+              customer_id: customer?.id || null,
               description: charge.description || null,
               last_synced: Date.now(),
-              customer_id: customer?.id || null,
-              billing_details: {
-                email: charge.billing_details?.email || (customer && 'email' in customer ? customer.email : ''),
-                name: charge.billing_details?.name || (customer && 'name' in customer ? customer.name : ''),
-                phone: charge.billing_details?.phone || (customer && 'phone' in customer ? customer.phone : '')
-              },
-              receipt_url: charge.receipt_url || '',
               payment_method: charge.payment_method || null,
+              receipt_url: charge.receipt_url || '',
+              billing_details: {
+                // Make sure email is always populated
+                email: email,
+                name: charge.billing_details?.name || (customer && 'name' in customer ? customer.name : '') || '',
+                phone: charge.billing_details?.phone || (customer && 'phone' in customer ? customer.phone : '') || ''
+              },
+              payment_details: charge.payment_method_details ? {
+                type: charge.payment_method_details.type,
+                card: charge.payment_method_details.card ? {
+                  brand: charge.payment_method_details.card.brand,
+                  last4: charge.payment_method_details.card.last4,
+                  exp_month: charge.payment_method_details.card.exp_month,
+                  exp_year: charge.payment_method_details.card.exp_year
+                } : null
+              } : null,
               metadata: charge.metadata || null
             };
             
@@ -244,10 +273,12 @@ export async function POST(request: NextRequest) {
         }
       }
       
-      // If we didn't get a full batch, there are no more charges
-      if (charges.data.length < batchSize) {
+      // If we've processed enough items or didn't get a full batch, there are no more charges
+      if (charges.data.length < currentBatchSize || (paymentLimit > 0 && processedCount >= paymentLimit)) {
         hasMoreCharges = false;
-        console.log('Reached end of recent charges.');
+        console.log(paymentLimit > 0 ? 
+          `Reached limit of ${paymentLimit} recent payments.` : 
+          'Reached end of recent charges.');
       } else {
         // Update the last processed ID for pagination
         chLastProcessedId = charges.data[charges.data.length - 1].id;
@@ -255,94 +286,124 @@ export async function POST(request: NextRequest) {
       }
     }
     
-    // After processing the recent charges, fetch any older ones that might be missing
-    console.log('Finished processing recent charges, now checking for older missing charges...');
-    
-    // Reset for the standard sync
-    chLastProcessedId = null;
-    chCurrentBatch = 1;
-    hasMoreCharges = true;
-    
-    // Now do the standard sync for older charges
-    while (hasMoreCharges && chCurrentBatch <= maxBatches) {
-      console.log(`Fetching batch ${chCurrentBatch} of charges...`);
+    // Only fetch older charges in full sync mode or if we haven't reached the limit yet
+    if (syncType === 'full' || (paymentLimit > 0 && processedCount < paymentLimit)) {
+      // After processing the recent charges, fetch any older ones that might be missing
+      console.log('Finished processing recent charges, now checking for older missing charges...');
       
-      const charges: Stripe.ApiList<Stripe.Charge> = await stripe.charges.list({
-        limit: batchSize,
-        expand: ['data.balance_transaction'],
-        ...(chLastProcessedId ? { starting_after: chLastProcessedId } : {})
-      });
+      // Reset for the standard sync
+      chLastProcessedId = null;
+      chCurrentBatch = 1;
+      hasMoreCharges = true;
       
-      if (!charges.data || charges.data.length === 0) {
-        hasMoreCharges = false;
-        console.log('No more charges to process.');
-        continue;
-      }
-      
-      console.log(`Retrieved ${charges.data.length} charges in batch ${chCurrentBatch}`);
-      
-      // Process charges in this batch
-      for (const charge of charges.data) {
-        try {
-          // Extract email and other processing code remains similar...
-          const customer = typeof charge.customer === 'object' ? charge.customer : null;
-          let email = charge.billing_details?.email || 
-                     (customer && 'email' in customer ? customer.email : '') || 
-                     charge.receipt_email || 
-                     (charge.metadata?.email as string) || 
-                     '';
-                     
-          if (email) {
-            email = email.toLowerCase();
-            
-            // Create the payment document
-            const paymentDoc = {
-              id: charge.id,
-              stripe_id: charge.id,
-              type: 'charge',
-              amount: charge.amount,
-              currency: charge.currency,
-              amount_eur: charge.currency.toLowerCase() === 'eur' ? 
-                          charge.amount : 
-                          calculateEurAmount(charge),
-              status: charge.status,
-              refunded: charge.refunded || false,
-              created: charge.created,
-              email: email,
-              description: charge.description || null,
-              last_synced: Date.now(),
-              customer_id: customer?.id || null,
-              billing_details: {
-                email: charge.billing_details?.email || (customer && 'email' in customer ? customer.email : ''),
-                name: charge.billing_details?.name || (customer && 'name' in customer ? customer.name : ''),
-                phone: charge.billing_details?.phone || (customer && 'phone' in customer ? customer.phone : '')
-              },
-              receipt_url: charge.receipt_url || '',
-              payment_method: charge.payment_method || null,
-              metadata: charge.metadata || null
-            };
-            
-            // Add or update this record in Firestore (merging with existing data)
-            await setDoc(doc(db, PAYMENTS_COLLECTION, charge.id), paymentDoc, { merge: true });
-            processedCount++;
-            
-            // Update the last processed ID
-            chLastProcessedId = charge.id;
-          }
-        } catch (error) {
-          console.error(`Error processing charge ${charge.id}:`, error);
-          errorCount++;
+      // Now do the standard sync for older charges
+      while (hasMoreCharges && chCurrentBatch <= maxBatches && (paymentLimit === 0 || processedCount < paymentLimit)) {
+        console.log(`Fetching batch ${chCurrentBatch} of charges...`);
+        
+        // Calculate how many items to fetch in this batch
+        const currentBatchSize = paymentLimit > 0 ? 
+          Math.min(batchSize, paymentLimit - processedCount) : 
+          batchSize;
+          
+        const charges: Stripe.ApiList<Stripe.Charge> = await stripe.charges.list({
+          limit: currentBatchSize,
+          expand: ['data.balance_transaction'],
+          ...(chLastProcessedId ? { starting_after: chLastProcessedId } : {})
+        });
+        
+        if (!charges.data || charges.data.length === 0) {
+          hasMoreCharges = false;
+          console.log(paymentLimit > 0 ? 
+            `Reached limit of ${paymentLimit} older payments.` : 
+            'Reached end of older charges.');
+          continue;
         }
-      }
-      
-      // If we didn't get a full batch, there are no more charges
-      if (charges.data.length < batchSize) {
-        hasMoreCharges = false;
-        console.log('Reached end of older charges.');
-      } else {
-        // Update the last processed ID for pagination
-        chLastProcessedId = charges.data[charges.data.length - 1].id;
-        chCurrentBatch++;
+        
+        console.log(`Retrieved ${charges.data.length} charges in batch ${chCurrentBatch}`);
+        
+        // Process charges in this batch
+        for (const charge of charges.data) {
+          try {
+            // Extract email and other processing code remains similar...
+            const customer = typeof charge.customer === 'object' ? charge.customer : null;
+            let email = charge.billing_details?.email || 
+                       (customer && 'email' in customer ? customer.email : '') || 
+                       charge.receipt_email || 
+                       (charge.metadata?.email as string) || 
+                       '';
+                       
+            if (email) {
+              email = email.toLowerCase();
+              
+              // Create the payment document with improved structure
+              const paymentDoc = {
+                id: charge.id,
+                stripe_id: charge.id,
+                type: 'charge',
+                amount: charge.amount,
+                currency: charge.currency,
+                amount_eur: charge.currency.toLowerCase() === 'eur' ? 
+                            charge.amount : 
+                            calculateEurAmount(charge),
+                status: charge.status,
+                refunded: charge.refunded || false,
+                created: charge.created,
+                // Remove duplicate email field at top level
+                created_date: new Date(charge.created * 1000).toISOString(),
+                created_formatted: new Date(charge.created * 1000).toLocaleString('en-US', {
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit'
+                }),
+                customer_id: customer?.id || null,
+                description: charge.description || null,
+                last_synced: Date.now(),
+                payment_method: charge.payment_method || null,
+                receipt_url: charge.receipt_url || '',
+                billing_details: {
+                  // Make sure email is always populated
+                  email: email,
+                  name: charge.billing_details?.name || (customer && 'name' in customer ? customer.name : '') || '',
+                  phone: charge.billing_details?.phone || (customer && 'phone' in customer ? customer.phone : '') || ''
+                },
+                payment_details: charge.payment_method_details ? {
+                  type: charge.payment_method_details.type,
+                  card: charge.payment_method_details.card ? {
+                    brand: charge.payment_method_details.card.brand,
+                    last4: charge.payment_method_details.card.last4,
+                    exp_month: charge.payment_method_details.card.exp_month,
+                    exp_year: charge.payment_method_details.card.exp_year
+                  } : null
+                } : null,
+                metadata: charge.metadata || null
+              };
+              
+              // Add or update this record in Firestore (merging with existing data)
+              await setDoc(doc(db, PAYMENTS_COLLECTION, charge.id), paymentDoc, { merge: true });
+              processedCount++;
+              
+              // Update the last processed ID
+              chLastProcessedId = charge.id;
+            }
+          } catch (error) {
+            console.error(`Error processing charge ${charge.id}:`, error);
+            errorCount++;
+          }
+        }
+        
+        // If we've processed enough items or didn't get a full batch, there are no more charges
+        if (charges.data.length < currentBatchSize || (paymentLimit > 0 && processedCount >= paymentLimit)) {
+          hasMoreCharges = false;
+          console.log(paymentLimit > 0 ? 
+            `Reached limit of ${paymentLimit} older payments.` : 
+            'Reached end of older charges.');
+        } else {
+          // Update the last processed ID for pagination
+          chLastProcessedId = charges.data[charges.data.length - 1].id;
+          chCurrentBatch++;
+        }
       }
     }
     
@@ -474,7 +535,7 @@ export async function POST(request: NextRequest) {
           // Convert amount to EUR
           const amountInEUR = calculateEurAmount(specificCharge);
           
-          // Create the payment document
+          // Create the payment document with improved structure
           const paymentDoc = {
             id: specificCharge.id,
             stripe_id: specificCharge.id,
@@ -485,17 +546,35 @@ export async function POST(request: NextRequest) {
             status: specificCharge.status,
             refunded: specificCharge.refunded || false,
             created: specificCharge.created,
-            email: email || 'unknown',
+            // Remove duplicate email field at top level
+            created_date: new Date(specificCharge.created * 1000).toISOString(),
+            created_formatted: new Date(specificCharge.created * 1000).toLocaleString('en-US', {
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit'
+            }),
+            customer_id: customer?.id || null,
             description: specificCharge.description || null,
             last_synced: Date.now(),
-            customer_id: customer?.id || null,
+            payment_method: specificCharge.payment_method || null,
+            receipt_url: specificCharge.receipt_url || '',
             billing_details: {
+              // Make sure email is always populated
               email: email || '',
               name: specificCharge.billing_details?.name || '',
               phone: specificCharge.billing_details?.phone || ''
             },
-            receipt_url: specificCharge.receipt_url || '',
-            payment_method: specificCharge.payment_method || null,
+            payment_details: specificCharge.payment_method_details ? {
+              type: specificCharge.payment_method_details.type,
+              card: specificCharge.payment_method_details.card ? {
+                brand: specificCharge.payment_method_details.card.brand,
+                last4: specificCharge.payment_method_details.card.last4,
+                exp_month: specificCharge.payment_method_details.card.exp_month,
+                exp_year: specificCharge.payment_method_details.card.exp_year
+              } : null
+            } : null,
             metadata: specificCharge.metadata || null
           };
           

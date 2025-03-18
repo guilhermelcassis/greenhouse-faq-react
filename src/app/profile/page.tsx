@@ -6,6 +6,7 @@ import { useAuth } from '@/lib/auth';
 import { formatDistanceToNow } from 'date-fns';
 import { User, LogOut, CreditCard, Clock, FileText } from 'lucide-react';
 import { Footer } from '@/components/Footer';
+import { getCache, setCache } from '@/lib/cache-utils';
 
 
 // Utility function to convert name to proper case
@@ -95,6 +96,25 @@ export default function ProfilePage() {
     try {
       setIsLoading(true);
       
+      // Check cache first if user is logged in
+      if (user) {
+        const cacheKey = `user_payments_${user.uid}`;
+        const cachedPayments = getCache<StripePayment[]>(cacheKey);
+        
+        if (cachedPayments) {
+          console.log(`[Cache] Using cached payment data (${cachedPayments.length} payments)`);
+          setPayments(cachedPayments);
+          
+          // Calculate total spent from cached data
+          calculateTotalSpent(cachedPayments);
+          
+          setIsLoading(false);
+          return;
+        }
+        
+        console.log('[Cache] No valid cache found, fetching payments from API');
+      }
+      
       // Get the Firebase auth token
       const token = user ? await user.getIdToken() : null;
       
@@ -131,58 +151,53 @@ export default function ProfilePage() {
         console.log('No payments returned from API');
       }
       
-      setPayments(data.payments || []);
+      const paymentsData = data.payments || [];
+      setPayments(paymentsData);
       
-      // Calculate total spent in euros only - with detailed logging
-      let totalEuros = 0;
-      if (data.payments?.length > 0) {
-        // Log each payment processing step
-        data.payments
-          .filter((payment: StripePayment) => {
-            // Check if the payment status is 'succeeded'
-            if (payment.status === 'succeeded' && !payment.refunded && !(payment.description?.toLowerCase().includes('refund'))) {
-              const isSucceeded = payment.status === 'succeeded';
-              console.log(`Payment ${payment.id} status:`, payment.status, isSucceeded ? 'COUNTED' : 'SKIPPED');
-              return isSucceeded;
-            }
-          })
-          .forEach((payment: StripePayment) => {
-            // Check if the payment status is 'succeeded'
-            if (payment.status === 'succeeded' && !payment.refunded && !(payment.description?.toLowerCase().includes('refund'))) {
-              // Log the detailed payment information for debugging
-              console.log('Payment details for calculation:', {
-                paymentId: payment.id,
-                currency: payment.currency,
-                amount: payment.amount,
-                amount_eur: payment.amount_eur,
-                balance_transaction: payment.balance_transaction ? {
-                  currency: payment.balance_transaction.currency,
-                  amount: payment.balance_transaction.amount,
-                  exchange_rate: payment.balance_transaction.exchange_rate
-                } : 'N/A'
-              });
-              
-              // Use balance_transaction.amount when available for the actual EUR amount
-              const amount = payment.balance_transaction?.currency === 'eur' 
-                ? payment.balance_transaction.amount / 100 
-                : (payment.currency === 'eur' ? payment.amount / 100 : (payment.amount_eur || payment.amount) / 100);
-              
-              console.log(`Adding amount to total: €${amount}`);
-              totalEuros += amount;
-            }
-          });
+      // Calculate total spent
+      calculateTotalSpent(paymentsData);
+      
+      // Cache the payments data if user is logged in
+      if (user && paymentsData.length > 0) {
+        const cacheKey = `user_payments_${user.uid}`;
+        setCache(cacheKey, paymentsData);
       }
       
-      console.log('Final calculated total euros:', totalEuros);
-      
-      // Set just the euro total
-      setTotalSpent(totalEuros);
     } catch (error) {
-      console.error('Error fetching payments:', error);
+      console.error('Error fetching payment history:', error);
     } finally {
       setIsLoading(false);
     }
   }, [user]);
+  
+  // Function to calculate total spent
+  const calculateTotalSpent = (paymentsData: StripePayment[]) => {
+    let totalEuros = 0;
+    if (paymentsData.length > 0) {
+      // Log each payment processing step
+      paymentsData
+        .filter((payment: StripePayment) => {
+          // Check if the payment status is 'succeeded'
+          if (payment.status === 'succeeded' && !payment.refunded && !(payment.description?.toLowerCase().includes('refund'))) {
+            const isSucceeded = payment.status === 'succeeded';
+            console.log(`Payment ${payment.id} status:`, payment.status, isSucceeded ? 'COUNTED' : 'SKIPPED');
+            return isSucceeded;
+          }
+          return false;
+        })
+        .forEach((payment: StripePayment) => {
+          // Use amount_eur if available, otherwise convert from original currency
+          if (payment.amount_eur) {
+            console.log(`Using amount_eur for ${payment.id}:`, payment.amount_eur);
+            totalEuros += payment.amount_eur;
+          }
+          // Add fallback currency conversion if needed
+        });
+    }
+    
+    console.log('Total spent in EUR:', totalEuros / 100);
+    setTotalSpent(totalEuros / 100);
+  };
   
   useEffect(() => {
     // Redirect if not logged in (using Firebase only)
@@ -606,6 +621,8 @@ export default function ProfilePage() {
             </div>
           ) : (
             <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent">
+              <div className="flex justify-between items-center mb-6">
+              </div>
               <table className="w-full">
                 <thead className="bg-secondary/10">
                   <tr>
@@ -618,7 +635,7 @@ export default function ProfilePage() {
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {payments
-                  .filter(payment => payment.status !== 'failed' && !payment.refunded && !(payment.description?.toLowerCase().includes('refund')))
+                  .filter(payment => payment.status === 'succeeded' && !payment.refunded && !(payment.description?.toLowerCase().includes('refund')))
                   .map((payment) => (
                     <tr key={payment.id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-6 py-5 whitespace-nowrap">

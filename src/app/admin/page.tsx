@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
 import { Footer } from '@/components/Footer';
 import { User, Plus, Trash2, Save, X, CheckCircle, AlertCircle, PenSquare } from 'lucide-react';
+import { getCache, setCache, clearCache } from '@/lib/cache-utils';
 
 // User type interface with roles array instead of type field
 interface UserEmail {
@@ -76,6 +77,8 @@ export default function AdminPage() {
     staff: false
   });
 
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
   useEffect(() => {
     setIsClient(true);
     
@@ -131,29 +134,23 @@ export default function AdminPage() {
     }
   }, [isClient]);
 
-  // Fetch user emails when component mounts
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => {
-    if (user && user.isAdmin) {
-      fetchUserEmails();
-    }
-  }, [user]);
-
-  // Auto-hide toast after delay
-  useEffect(() => {
-    if (toast.visible) {
-      const timer = setTimeout(() => {
-        setToast(prev => ({ ...prev, visible: false }));
-      }, 3000); // Hide after 3 seconds
-      
-      return () => clearTimeout(timer);
-    }
-  }, [toast.visible]);
-
   // Fetch user emails from the database
-  const fetchUserEmails = async () => {
+  const fetchUserEmails = useCallback(async () => {
     try {
       setIsLoading(true);
+      
+      // Check cache first
+      const cacheKey = 'admin_users_cache';
+      const cachedUsers = getCache<UserEmail[]>(cacheKey);
+      
+      if (cachedUsers) {
+        console.log(`[Cache] Using cached user data (${cachedUsers.length} users)`);
+        processUserData(cachedUsers);
+        setIsLoading(false);
+        return;
+      }
+      
+      console.log('[Cache] No valid cache found, fetching users from API');
       
       // Get the Firebase auth token
       const token = user ? await user.getIdToken() : null;
@@ -166,48 +163,101 @@ export default function AdminPage() {
       });
       
       if (!response.ok) {
-        throw new Error('Failed to fetch user emails');
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Failed to fetch user emails:', { 
+          status: response.status, 
+          statusText: response.statusText,
+          errorData 
+        });
+        throw new Error(`Failed to fetch user emails: ${response.status} ${response.statusText}`);
       }
       
       const data = await response.json();
+      console.log('Received user data:', data);
       
-      // Separate emails by type
-      const admins: UserEmail[] = [];
-      const approved: UserEmail[] = [];
-      const staff: UserEmail[] = [];
+      // Cache the users data
+      if (data.users && Array.isArray(data.users)) {
+        setCache(cacheKey, data.users);
+      }
       
-      data.users.forEach((user: UserEmail) => {
-        // Check each role and add to the appropriate arrays
-        // This allows users to appear in multiple categories if they have multiple roles
-        if (user.roles.includes('admin')) {
-          admins.push(user);
-        }
-        
-        if (user.roles.includes('approved')) {
-          approved.push(user);
-        }
-        
-        if (user.roles.includes('staff')) {
-          staff.push(user);
-        }
-      });
-      
-      // Sort all arrays alphabetically by email
-      admins.sort((a, b) => a.email.toLowerCase().localeCompare(b.email.toLowerCase()));
-      approved.sort((a, b) => a.email.toLowerCase().localeCompare(b.email.toLowerCase()));
-      staff.sort((a, b) => a.email.toLowerCase().localeCompare(b.email.toLowerCase()));
-      
-      setAdminEmails(admins);
-      setApprovedEmails(approved);
-      setStaffEmails(staff);
+      // Process the user data
+      processUserData(data.users);
       
     } catch (error) {
       console.error('Error fetching user emails:', error);
       showToast('Failed to load user emails. Please try again.', 'error');
     } finally {
       setIsLoading(false);
+      setIsRefreshing(false);
     }
+  }, [user]);
+  
+  // Function to process user data and separate by roles
+  const processUserData = (users: UserEmail[]) => {
+    // Separate emails by type
+    const admins: UserEmail[] = [];
+    const approved: UserEmail[] = [];
+    const staff: UserEmail[] = [];
+    
+    users.forEach((user: UserEmail) => {
+      // Check each role and add to the appropriate arrays
+      // This allows users to appear in multiple categories if they have multiple roles
+      if (user.roles.includes('admin')) {
+        admins.push(user);
+      }
+      
+      if (user.roles.includes('approved')) {
+        approved.push(user);
+      }
+      
+      if (user.roles.includes('staff')) {
+        staff.push(user);
+      }
+    });
+    
+    console.log('Processed user data:', {
+      totalUsers: users.length,
+      admins: admins.length,
+      approved: approved.length,
+      staff: staff.length
+    });
+    
+    // Sort all arrays alphabetically by email
+    admins.sort((a, b) => a.email.toLowerCase().localeCompare(b.email.toLowerCase()));
+    approved.sort((a, b) => a.email.toLowerCase().localeCompare(b.email.toLowerCase()));
+    staff.sort((a, b) => a.email.toLowerCase().localeCompare(b.email.toLowerCase()));
+    
+    setAdminEmails(admins);
+    setApprovedEmails(approved);
+    setStaffEmails(staff);
   };
+  
+  // Function to refresh user data by clearing cache
+  const refreshUserData = async () => {
+    setIsRefreshing(true);
+    // Clear the cache
+    clearCache('admin_users_cache');
+    // Fetch fresh data
+    await fetchUserEmails();
+  };
+
+  // Fetch user emails when component mounts
+  useEffect(() => {
+    if (user && user.isAdmin) {
+      fetchUserEmails();
+    }
+  }, [user, fetchUserEmails]);
+
+  // Auto-hide toast after delay
+  useEffect(() => {
+    if (toast.visible) {
+      const timer = setTimeout(() => {
+        setToast(prev => ({ ...prev, visible: false }));
+      }, 3000); // Hide after 3 seconds
+      
+      return () => clearTimeout(timer);
+    }
+  }, [toast.visible]);
 
   // Function to show toast notifications
   const showToast = (message: string, type: 'success' | 'error' | 'info') => {
@@ -639,14 +689,37 @@ export default function AdminPage() {
         </div>
       </section>
 
-      <div className="container mx-auto px-4 py-12 -mt-10 relative z-10">
-        {/* Add User Form */}
+      <div className="max-w-7xl mx-auto px-4 py-10">
+        {/* Bulk Import Section */}
         <div className="bg-white rounded-xl shadow-lg border border-green-subtle card-hover-effect p-8 mb-8 transition-all duration-300 mt-8">
-          <div className="flex items-center mb-6">
-            <div className="p-3 bg-primary/10 rounded-full text-primary mr-3">
-              <User size={24} />
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center">
+              <div className="p-3 bg-primary/10 rounded-full text-primary mr-3">
+                <User size={24} />
+              </div>
+              <h2 className="text-2xl font-bold text-gradient-green">Add New Users</h2>
             </div>
-            <h2 className="text-2xl font-bold text-gradient-green">Add New Users</h2>
+            
+            {/* Add Refresh Button here */}
+            <button
+              onClick={refreshUserData}
+              disabled={isRefreshing || isLoading}
+              className="px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors flex items-center space-x-2"
+            >
+              {isRefreshing ? (
+                <>
+                  <div className="animate-spin h-4 w-4 border-2 border-blue-700 border-t-transparent rounded-full"></div>
+                  <span>Refreshing...</span>
+                </>
+              ) : (
+                <>
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  <span>Refresh Data</span>
+                </>
+              )}
+            </button>
           </div>
           
           <div className="space-y-6">
@@ -770,7 +843,7 @@ export default function AdminPage() {
         </div>
         
         {/* User Lists */}
-        <div className="bg-white rounded-xl shadow-lg border border-green-subtle card-hover-effect p-8 transition-all duration-300">
+        <div className="bg-white rounded-xl shadow-lg border border-green-subtle card-hover-effect p-8 transition-all duration-300" id="user-management">
           <div className="flex items-center mb-6">
             <div className="p-3 bg-primary/10 rounded-full text-primary mr-3">
               <User size={24} />
@@ -782,6 +855,7 @@ export default function AdminPage() {
           <div className="mb-6">
             <div className="flex space-x-2">
               <button 
+                key="admin-tab"
                 onClick={() => setActiveTab('admin')}
                 className={`flex items-center px-5 py-3 font-medium rounded-t-lg transition-all duration-200 ${
                   activeTab === 'admin' 
@@ -796,6 +870,7 @@ export default function AdminPage() {
                 </span>
               </button>
               <button 
+                key="approved-tab"
                 onClick={() => setActiveTab('approved')}
                 className={`flex items-center px-5 py-3 font-medium rounded-t-lg transition-all duration-200 ${
                   activeTab === 'approved' 
@@ -810,6 +885,7 @@ export default function AdminPage() {
                 </span>
               </button>
               <button 
+                key="staff-tab"
                 onClick={() => setActiveTab('staff')}
                 className={`flex items-center px-5 py-3 font-medium rounded-t-lg transition-all duration-200 ${
                   activeTab === 'staff' 
@@ -844,48 +920,50 @@ export default function AdminPage() {
                 <div className="space-y-3 transition-all duration-300">
                   {[...adminEmails]
                     .sort((a, b) => a.email.toLowerCase().localeCompare(b.email.toLowerCase()))
-                    .map((user) => (
-                    <div 
-                      key={user.id} 
-                      className="bg-white border border-gray-100 hover:border-primary/20 rounded-lg shadow-sm hover:shadow p-5 flex justify-between items-center transition-all duration-300 hover:scale-[1.01]"
-                    >
-                      <div>
-                        <div className="text-lg font-medium text-gradient-green">{user.email}</div>
-                        <div className="text-sm text-gray-500">
-                          Added: {formatTimestamp(user.added_timestamp)}
+                    .map((user, index) => (
+                      <div 
+                        key={user.id || `admin-${index}`} 
+                        className="bg-white border border-gray-100 hover:border-primary/20 rounded-lg shadow-sm hover:shadow p-5 flex justify-between items-center transition-all duration-300 hover:scale-[1.01]"
+                      >
+                        <div>
+                          <div className="text-lg font-medium text-gradient-green">{user.email}</div>
+                          <div className="text-sm text-gray-500">
+                            Added: {formatTimestamp(user.added_timestamp)}
+                          </div>
+                          <div className="mt-2 flex flex-wrap gap-1">
+                            {user.roles
+                              .slice() // Create a copy of the array to avoid mutating the original
+                              .sort((a, b) => a.localeCompare(b)) // Sort roles alphabetically
+                              .map((role) => {
+                                return (
+                                  <span 
+                                    key={role} 
+                                    className={`text-xs px-2 py-1 rounded-full ${badgeClass(role)}`}
+                                  >
+                                    {formatRoleNameForDisplay(role)}
+                                  </span>
+                                );
+                              })}
+                          </div>
                         </div>
-                        <div className="mt-2 flex flex-wrap gap-1">
-                          {user.roles
-                            .slice() // Create a copy of the array to avoid mutating the original
-                            .sort((a, b) => a.localeCompare(b)) // Sort roles alphabetically
-                            .map((role, i) => (
-                            <span 
-                              key={i} 
-                              className={`text-xs px-2 py-1 rounded-full ${badgeClass(role)}`}
-                            >
-                              {formatRoleNameForDisplay(role)}
-                            </span>
-                          ))}
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={() => handlePrepareEdit(user)}
+                            className="p-2 bg-primary/10 text-white rounded-lg hover:bg-primary/20 transition-colors"
+                            title="Edit user"
+                          >
+                            <PenSquare size={18} className="text-white" />
+                          </button>
+                          <button
+                            onClick={() => handleConfirmDelete(user.id)}
+                            className="p-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+                            title="Delete user"
+                          >
+                            <Trash2 size={18} className="text-white" />
+                          </button>
                         </div>
                       </div>
-                      <div className="flex space-x-2">
-                        <button
-                          onClick={() => handlePrepareEdit(user)}
-                          className="p-2 bg-primary/10 text-white rounded-lg hover:bg-primary/20 transition-colors"
-                          title="Edit user"
-                        >
-                          <PenSquare size={18} className="text-white" />
-                        </button>
-                        <button
-                          onClick={() => handleConfirmDelete(user.id)}
-                          className="p-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
-                          title="Delete user"
-                        >
-                          <Trash2 size={18} className="text-white" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                    ))}
                 </div>
               )}
             </div>
@@ -909,48 +987,50 @@ export default function AdminPage() {
                 <div className="space-y-3 transition-all duration-300">
                   {[...approvedEmails]
                     .sort((a, b) => a.email.toLowerCase().localeCompare(b.email.toLowerCase()))
-                    .map((user) => (
-                    <div 
-                      key={user.id} 
-                      className="bg-white border border-gray-100 hover:border-primary/20 rounded-lg shadow-sm hover:shadow p-5 flex justify-between items-center transition-all duration-300 hover:scale-[1.01]"
-                    >
-                      <div>
-                        <div className="text-lg font-medium text-gradient-green">{user.email}</div>
-                        <div className="text-sm text-gray-500">
-                          Added: {formatTimestamp(user.added_timestamp)}
+                    .map((user, index) => (
+                      <div 
+                        key={user.id || `approved-${index}`} 
+                        className="bg-white border border-gray-100 hover:border-primary/20 rounded-lg shadow-sm hover:shadow p-5 flex justify-between items-center transition-all duration-300 hover:scale-[1.01]"
+                      >
+                        <div>
+                          <div className="text-lg font-medium text-gradient-green">{user.email}</div>
+                          <div className="text-sm text-gray-500">
+                            Added: {formatTimestamp(user.added_timestamp)}
+                          </div>
+                          <div className="mt-2 flex flex-wrap gap-1">
+                            {user.roles
+                              .slice() // Create a copy of the array to avoid mutating the original
+                              .sort((a, b) => a.localeCompare(b)) // Sort roles alphabetically
+                              .map((role) => {
+                                return (
+                                  <span 
+                                    key={role} 
+                                    className={`text-xs px-2 py-1 rounded-full ${badgeClass(role)}`}
+                                  >
+                                    {formatRoleNameForDisplay(role)}
+                                  </span>
+                                );
+                              })}
+                          </div>
                         </div>
-                        <div className="mt-2 flex flex-wrap gap-1">
-                          {user.roles
-                            .slice() // Create a copy of the array to avoid mutating the original
-                            .sort((a, b) => a.localeCompare(b)) // Sort roles alphabetically
-                            .map((role, i) => (
-                            <span 
-                              key={i} 
-                              className={`text-xs px-2 py-1 rounded-full ${badgeClass(role)}`}
-                            >
-                              {formatRoleNameForDisplay(role)}
-                            </span>
-                          ))}
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={() => handlePrepareEdit(user)}
+                            className="p-2 bg-primary/10 text-white rounded-lg hover:bg-primary/20 transition-colors"
+                            title="Edit user"
+                          >
+                            <PenSquare size={18} className="text-white" />
+                          </button>
+                          <button
+                            onClick={() => handleConfirmDelete(user.id)}
+                            className="p-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+                            title="Delete user"
+                          >
+                            <Trash2 size={18} className="text-white" />
+                          </button>
                         </div>
                       </div>
-                      <div className="flex space-x-2">
-                        <button
-                          onClick={() => handlePrepareEdit(user)}
-                          className="p-2 bg-primary/10 text-white rounded-lg hover:bg-primary/20 transition-colors"
-                          title="Edit user"
-                        >
-                          <PenSquare size={18} className="text-white" />
-                        </button>
-                        <button
-                          onClick={() => handleConfirmDelete(user.id)}
-                          className="p-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
-                          title="Delete user"
-                        >
-                          <Trash2 size={18} className="text-white" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                    ))}
                 </div>
               )}
             </div>
@@ -974,48 +1054,50 @@ export default function AdminPage() {
                 <div className="space-y-3 transition-all duration-300">
                   {[...staffEmails]
                     .sort((a, b) => a.email.toLowerCase().localeCompare(b.email.toLowerCase()))
-                    .map((user) => (
-                    <div 
-                      key={user.id} 
-                      className="bg-white border border-gray-100 hover:border-primary/20 rounded-lg shadow-sm hover:shadow p-5 flex justify-between items-center transition-all duration-300 hover:scale-[1.01]"
-                    >
-                      <div>
-                        <div className="text-lg font-medium text-gradient-green">{user.email}</div>
-                        <div className="text-sm text-gray-500">
-                          Added: {formatTimestamp(user.added_timestamp)}
+                    .map((user, index) => (
+                      <div 
+                        key={user.id || `staff-${index}`} 
+                        className="bg-white border border-gray-100 hover:border-primary/20 rounded-lg shadow-sm hover:shadow p-5 flex justify-between items-center transition-all duration-300 hover:scale-[1.01]"
+                      >
+                        <div>
+                          <div className="text-lg font-medium text-gradient-green">{user.email}</div>
+                          <div className="text-sm text-gray-500">
+                            Added: {formatTimestamp(user.added_timestamp)}
+                          </div>
+                          <div className="mt-2 flex flex-wrap gap-1">
+                            {user.roles
+                              .slice() // Create a copy of the array to avoid mutating the original
+                              .sort((a, b) => a.localeCompare(b)) // Sort roles alphabetically
+                              .map((role) => {
+                                return (
+                                  <span 
+                                    key={role} 
+                                    className={`text-xs px-2 py-1 rounded-full ${badgeClass(role)}`}
+                                  >
+                                    {formatRoleNameForDisplay(role)}
+                                  </span>
+                                );
+                              })}
+                          </div>
                         </div>
-                        <div className="mt-2 flex flex-wrap gap-1">
-                          {user.roles
-                            .slice() // Create a copy of the array to avoid mutating the original
-                            .sort((a, b) => a.localeCompare(b)) // Sort roles alphabetically
-                            .map((role, i) => (
-                            <span 
-                              key={i} 
-                              className={`text-xs px-2 py-1 rounded-full ${badgeClass(role)}`}
-                            >
-                              {formatRoleNameForDisplay(role)}
-                            </span>
-                          ))}
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={() => handlePrepareEdit(user)}
+                            className="p-2 bg-primary/10 text-white rounded-lg hover:bg-primary/20 transition-colors"
+                            title="Edit user"
+                          >
+                            <PenSquare size={18} className="text-white" />
+                          </button>
+                          <button
+                            onClick={() => handleConfirmDelete(user.id)}
+                            className="p-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+                            title="Delete user"
+                          >
+                            <Trash2 size={18} className="text-white" />
+                          </button>
                         </div>
                       </div>
-                      <div className="flex space-x-2">
-                        <button
-                          onClick={() => handlePrepareEdit(user)}
-                          className="p-2 bg-primary/10 text-white rounded-lg hover:bg-primary/20 transition-colors"
-                          title="Edit user"
-                        >
-                          <PenSquare size={18} className="text-white" />
-                        </button>
-                        <button
-                          onClick={() => handleConfirmDelete(user.id)}
-                          className="p-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
-                          title="Delete user"
-                        >
-                          <Trash2 size={18} className="text-white" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                    ))}
                 </div>
               )}
             </div>

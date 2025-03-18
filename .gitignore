@@ -46,4 +46,6 @@ gh-auth-c79df-firebase-adminsdk-fbsvc-18689edbbf.json
 
 #cursor
 .cursorrules
+/.cursor
 .cursor/
+.cursor/rules.json
