@@ -3,6 +3,7 @@ import { auth } from '@/lib/firebase-admin';
 import { stripe } from '@/lib/stripe';
 import { StripePaymentData } from '@/lib/stripe';
 import { db as adminDb } from '@/lib/firebase-admin';
+import Stripe from 'stripe';
 
 interface PaginationParams {
   limit: number;
@@ -57,7 +58,7 @@ async function verifyAdmin(token: string) {
 }
 
 // Process a Stripe charge into our standard format
-function processCharge(charge: any): StripePaymentData {
+function processCharge(charge: Stripe.Charge): StripePaymentData {
   // Get the email from one of the possible locations, with fallbacks
   const email = 
     charge.metadata?.email ||

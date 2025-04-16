@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
 import { Search, Calendar, ChevronLeft, ChevronRight, Filter, RefreshCw, CreditCard, FileText, DollarSign, Clock, AlertTriangle, X } from 'lucide-react';
 import { Footer } from '@/components/Footer';
-import { getCache, setCache, clearCache } from '@/lib/cache-utils';
+import { setCache } from '@/lib/cache-utils';
 
 interface BalanceTransaction {
   exchange_rate?: number;
