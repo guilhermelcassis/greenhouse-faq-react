@@ -202,7 +202,7 @@ type CacheData<T> = {
 const CACHE_VERSION = 2; // Increased version to bust existing caches
 
 // In-memory cache storage
-const memoryCache: Record<string, CacheData<any>> = {};
+const memoryCache: Record<string, CacheData<unknown>> = {};
 
 // Default cache duration in milliseconds (15 minutes)
 const DEFAULT_CACHE_DURATION = 15 * 60 * 1000;
@@ -247,7 +247,8 @@ export function getMemoryCache<T>(key: string, maxAge?: number): T | undefined {
 
   const formattedTime = new Date(cacheData.timestamp).toLocaleTimeString();
   console.log(`[Cache] Using memory cached ${key} data from ${formattedTime}`);
-  return cacheData.value;
+  // Cast the unknown value to the generic type T
+  return cacheData.value as T;
 }
 
 /**

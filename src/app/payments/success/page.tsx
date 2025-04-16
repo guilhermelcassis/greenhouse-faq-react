@@ -53,7 +53,7 @@ function PaymentSuccessContent() {
     if (user) {
       syncPaymentsInBackground();
     }
-  }, [user]);
+  }, [user, syncPaymentsInBackground]);
   
   // Show loading state
   if (!isClient) {

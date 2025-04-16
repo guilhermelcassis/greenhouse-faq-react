@@ -304,11 +304,11 @@ export async function getPaymentsByEmail(email: string): Promise<StripePaymentDa
  * @returns Array of standardized payment data
  */
 export async function getPaymentsByUserId(userId: string): Promise<StripePaymentData[]> {
-  if (!stripe) {
-    console.error('Stripe instance not initialized');
-    return [];
-  }
-  
+    if (!stripe) {
+      console.error('Stripe instance not initialized');
+      return [];
+    }
+    
   try {
     console.log(`Searching payments for user ID: ${userId}`);
     
@@ -504,7 +504,7 @@ export async function searchPayments(params: {
           
           // Check if one of them is the specific customer mentioned in the issue
           const targetCustomerId = 'gcus_1R1FZvFaC9x6rmdUhR4CFmsV'; // The specific customer ID from the user's message
-          let targetCustomer = customers.data.find(c => c.id === targetCustomerId);
+          const targetCustomer = customers.data.find(c => c.id === targetCustomerId);
           
           if (targetCustomer) {
             console.log(`Found the specific customer ${targetCustomerId} - prioritizing their payments`);

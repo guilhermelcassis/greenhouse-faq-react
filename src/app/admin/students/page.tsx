@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
-import { User, Search, CreditCard, FileText, Clock, ArrowLeft, Mail, Phone, Eye, RefreshCw, Info } from 'lucide-react';
+import { User, Search, CreditCard, FileText, Clock, ArrowLeft, Mail, Phone, Eye, RefreshCw, Info, Loader2 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { Footer } from '@/components/Footer';
 import { getCache, setCache, clearCache } from '@/lib/cache-utils';
@@ -73,6 +73,22 @@ export default function StudentsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isLoadingStripePayments, setIsLoadingStripePayments] = useState(false);
+  const [stripePayments, setStripePayments] = useState<Payment[]>([]);
+  const [stripePaymentStats, setStripePaymentStats] = useState<{
+    totalSpent: number;
+    totalPayments: number;
+    successfulPayments: number;
+  } | null>(null);
+  const [toast, setToast] = useState<{
+    message: string;
+    type: 'success' | 'error' | 'info';
+    visible: boolean;
+  }>({
+    message: '',
+    type: 'info',
+    visible: false
+  });
 
   useEffect(() => {
     setIsClient(true);
@@ -147,6 +163,146 @@ export default function StudentsPage() {
     }
   }, [user]);
 
+  // Add a function to fetch payments directly from Stripe
+  const fetchStripePayments = useCallback(async (userEmail: string, userId?: string, retryCount = 0) => {
+    if (!userEmail) {
+      setToast({
+        message: 'Cannot fetch payments: No email provided',
+        type: 'error',
+        visible: true
+      });
+      return;
+    }
+
+    try {
+      setIsLoadingStripePayments(true);
+      
+      // Get Firebase token for auth
+      const token = await user?.getIdToken();
+      
+      if (!token) {
+        throw new Error('Authentication token not available');
+      }
+      
+      setToast({
+        message: 'Fetching payment data from Stripe...',
+        type: 'info',
+        visible: true
+      });
+      
+      // Set a timeout for fetch (client-side timeout)
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 120000); // 2-minute client-side timeout
+      
+      try {
+        const response = await fetch('/api/admin/user-payments', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            email: userEmail,
+            userId: userId,
+            // Request a longer timeout if this is a retry
+            requestTimeout: retryCount > 0 ? 120000 : 60000 // Ask for 2 minutes on retry, 1 minute for first try
+          }),
+          signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+        
+        // Handle different error status codes
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          
+          // Special handling for timeout errors (504 Gateway Timeout or explicit timeout flag)
+          if (response.status === 504 || errorData.isTimeout) {
+            if (retryCount < 1) { // Allow one retry
+              setToast({
+                message: `First attempt timed out. Retrying with a longer timeout...`,
+                type: 'info',
+                visible: true
+              });
+              
+              // Wait a moment before retrying to allow potential server resources to free up
+              await new Promise(resolve => setTimeout(resolve, 2000));
+              
+              // Recursive call with incremented retry count
+              return fetchStripePayments(userEmail, userId, retryCount + 1);
+            } else {
+              setToast({
+                message: `Request timed out after retry. This user may have many transactions that take longer to process. Try again later.`,
+                type: 'error',
+                visible: true
+              });
+              return;
+            }
+          }
+          
+          // Handle other errors
+          throw new Error(errorData.error || `Server responded with status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        console.log(`Loaded ${data.payments?.length || 0} payments from Stripe for ${userEmail}`);
+        console.log('Payment stats:', data.stats);
+        
+        setStripePayments(data.payments || []);
+        setStripePaymentStats(data.stats || null);
+        
+        if (data.payments?.length > 0) {
+          setToast({
+            message: `Successfully loaded ${data.payments.length} payments from Stripe!`,
+            type: 'success',
+            visible: true
+          });
+        } else {
+          setToast({
+            message: `No payments found for ${userEmail}`,
+            type: 'info',
+            visible: true
+          });
+        }
+      } catch (fetchError) {
+        clearTimeout(timeoutId);
+        throw fetchError;
+      }
+    } catch (error) {
+      console.error('Error fetching Stripe payments:', error);
+      
+      // Create user-friendly error message
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      
+      // Check for AbortError (client-side timeout)
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        setToast({
+          message: `The request was aborted due to taking too long. The user may have too many transactions to process at once.`,
+          type: 'error',
+          visible: true
+        });
+      }
+      // Check for timeout-related errors in the error message
+      else if (errorMessage.includes('timed out') || errorMessage.includes('timeout')) {
+        setToast({
+          message: `The request timed out. This user may have too many transactions to process at once. Try again later.`,
+          type: 'error',
+          visible: true
+        });
+      } else {
+        // Generic error message for other errors
+        setToast({
+          message: `Failed to fetch Stripe payments: ${errorMessage}`,
+          type: 'error',
+          visible: true
+        });
+      }
+    } finally {
+      setIsLoadingStripePayments(false);
+    }
+  }, [user, setToast, setIsLoadingStripePayments, setStripePayments, setStripePaymentStats]);
+
   // Fetch user details with payments
   const fetchUserDetails = useCallback(async (userId: string) => {
     try {
@@ -161,6 +317,11 @@ export default function StudentsPage() {
         console.log(`Using cached data for user ${userId}`);
         setSelectedUser(cachedUserDetails);
         setIsLoading(false);
+        
+        // Auto-fetch Stripe payments after loading user details
+        if (cachedUserDetails.email) {
+          fetchStripePayments(cachedUserDetails.email, cachedUserDetails.uid);
+        }
         return;
       }
       
@@ -207,14 +368,18 @@ export default function StudentsPage() {
       setCache(cacheKey, data.user);
       
       setSelectedUser(data.user);
-      console.log(`Loaded ${data.user.payments?.length || 0} payments for user ${data.user.email}`);
+      
+      // Auto-fetch Stripe payments after loading user details
+      if (data.user.email) {
+        fetchStripePayments(data.user.email, data.user.uid);
+      }
     } catch (error) {
       console.error('Error fetching user details:', error);
       setError(error instanceof Error ? error.message : 'An error occurred while fetching user details');
     } finally {
       setIsLoading(false);
     }
-  }, [user]);
+  }, [user, fetchStripePayments]);
 
   // Refresh all users data
   const refreshAllUsers = async () => {
@@ -274,22 +439,6 @@ export default function StudentsPage() {
     }).format(amount);
   };
 
-  // Calculate payment completion percentage for students
-  const calculatePaymentPercentage = (profile: UserProfile) => {
-    let requiredTotal = 0;
-    
-    if (profile.isApproved) requiredTotal = 850;
-    else if (profile.isStaff) requiredTotal = 550;
-    
-    if (requiredTotal === 0 || profile.totalSpent === undefined) return 0;
-    return Math.min(100, Math.round((profile.totalSpent / requiredTotal) * 100));
-  };
-
-  // Back to search results
-  const backToSearch = () => {
-    setSelectedUser(null);
-  };
-
   // Format user name
   const formatName = (name: string | null | undefined): string => {
     if (!name) return 'No Name Provided';
@@ -322,6 +471,16 @@ export default function StudentsPage() {
     }
   };
 
+  // Add this useEffect to hide toast after a delay
+  useEffect(() => {
+    if (toast.visible) {
+      const timer = setTimeout(() => {
+        setToast(prev => ({ ...prev, visible: false }));
+      }, 5000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [toast.visible]);
 
   if (loading || isLoading) {
     return (
@@ -372,7 +531,7 @@ export default function StudentsPage() {
             <div>
               {/* Back button */}
               <button 
-                onClick={backToSearch}
+                onClick={() => setSelectedUser(null)}
                 className="flex items-center gap-2 mb-6 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
               >
                 <ArrowLeft size={16} />
@@ -487,22 +646,28 @@ export default function StudentsPage() {
                   <div className="bg-green-50 p-5 rounded-xl border border-green-200">
                     <div className="flex items-center mb-2">
                       <CreditCard className="text-green-600 mr-2" size={18} />
-                      <span className="font-medium text-green-800">Total Spent</span>
+                      <span className="font-medium text-green-800">Total Spent (Stripe)</span>
                     </div>
                     <p className="text-2xl font-bold text-gradient-green">
-                      {formatCurrency(selectedUser.totalSpent || 0)}
+                      {stripePaymentStats ? (
+                        formatCurrency(stripePaymentStats.totalSpent)
+                      ) : (
+                        <span className="text-gray-400">No data</span>
+                      )}
                     </p>
                     
-                    {(selectedUser.isApproved || selectedUser.isStaff) && (
+                    {stripePaymentStats && (selectedUser?.isApproved || selectedUser?.isStaff) && (
                       <div className="mt-4">
                         <div className="h-3 w-full bg-gray-200 rounded-full overflow-hidden">
                           <div 
                             className="h-full bg-gradient-to-r from-primary to-emerald-500 rounded-full"
-                            style={{ width: `${calculatePaymentPercentage(selectedUser)}%` }}
+                            style={{ 
+                              width: `${Math.min(100, Math.round((stripePaymentStats.totalSpent / (selectedUser?.isApproved ? 850 : 550)) * 100))}%` 
+                            }}
                           ></div>
                         </div>
                         <p className="text-sm text-gray-600 mt-1">
-                          {calculatePaymentPercentage(selectedUser)}% of required amount
+                          {Math.min(100, Math.round((stripePaymentStats.totalSpent / (selectedUser?.isApproved ? 850 : 550)) * 100))}% of required amount
                         </p>
                       </div>
                     )}
@@ -511,13 +676,13 @@ export default function StudentsPage() {
                   <div className="bg-blue-50 p-5 rounded-xl border border-blue-200">
                     <div className="flex items-center mb-2">
                       <Clock className="text-blue-600 mr-2" size={18} />
-                      <span className="font-medium text-blue-800">Completed Payments</span>
+                      <span className="font-medium text-blue-800">Successful Payments</span>
                     </div>
                     <p className="text-2xl font-bold text-gradient-green">
-                      {selectedUser.payments?.filter(p => p.status === 'succeeded').length || 0}
+                      {stripePaymentStats?.successfulPayments || 0}
                     </p>
                     <p className="text-xs text-gray-500 mt-1">
-                      Total payments: {selectedUser.payments?.length || 0}
+                      Total payments: {stripePaymentStats?.totalPayments || 0}
                     </p>
                   </div>
                   
@@ -527,8 +692,8 @@ export default function StudentsPage() {
                       <span className="font-medium text-yellow-800">Recent Activity</span>
                     </div>
                     <p className="text-md text-gray-700">
-                      {selectedUser.payments && selectedUser.payments.length > 0 ? (
-                        `Last payment: ${new Date(Number(selectedUser.payments[0].created) * 1000).toLocaleDateString()}`
+                      {stripePayments && stripePayments.length > 0 ? (
+                        `Last payment: ${new Date(Number(stripePayments[0].created) * 1000).toLocaleDateString()}`
                       ) : (
                         'No payment history'
                       )}
@@ -537,144 +702,50 @@ export default function StudentsPage() {
                 </div>
               </div>
               
-              {/* Payment history */}
-              <div>
-                <h3 className="text-xl font-bold mb-4">Payment History</h3>
-                <div className="bg-white rounded-lg border overflow-hidden">
-                  {!selectedUser.payments || !Array.isArray(selectedUser.payments) || selectedUser.payments.filter(p => 
-                    p.status === 'succeeded' && 
-                    !p.refunded && 
-                    !(p.description?.toLowerCase().includes('refund'))
-                  ).length === 0 ? (
-                    <div className="p-8 text-center text-gray-500">
-                      <CreditCard size={32} className="mx-auto mb-2 text-gray-400" />
-                      <p>No successful payment records found for this user.</p>
-                      {selectedUser.payments && Array.isArray(selectedUser.payments) && selectedUser.payments.length > 0 && (
-                        <p className="mt-2 text-sm text-gray-400">
-                          Note: {selectedUser.payments.length} total payment records exist, but none are successful and non-refunded.
-                        </p>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="overflow-x-auto">
-                      <div className="bg-blue-50 p-3 border-b text-sm text-blue-800">
-                        <Info className="inline-block h-4 w-4 mr-1 -mt-0.5" />
-                        Showing only successful payments that have not been refunded.
-                      </div>
-                      <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
-                          <tr>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Receipt</th>
-                          </tr>
-                        </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
-                          {Array.isArray(selectedUser.payments) && selectedUser.payments
-                            .filter(payment => 
-                              payment && payment.status === 'succeeded' && 
-                              !payment.refunded && 
-                              !(payment.description?.toLowerCase().includes('refund'))
-                            )
-                            .sort((a, b) => Number(b.created) - Number(a.created)) // Sort by date, newest first
-                            .map(payment => (
-                              <tr key={payment.id} className="hover:bg-gray-50 transition-colors">
-                                <td className="px-6 py-4 whitespace-nowrap">
-                                  <div className="text-sm text-gray-900">
-                                    {new Date(Number(payment.created) * 1000).toLocaleDateString()}
-                                  </div>
-                                  <div className="text-xs text-gray-500">
-                                    {formatDistanceToNow(new Date(Number(payment.created) * 1000), { addSuffix: true })}
-                                  </div>
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap">
-                                  <div className="text-sm font-medium text-gray-900">
-                                    {formatCurrency(
-                                      payment.amount_eur ? payment.amount_eur / 100 : payment.amount / 100,
-                                      payment.currency?.toUpperCase() || 'EUR'
-                                    )}
-                                  </div>
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap">
-                                  <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                                    payment.status === 'succeeded' ? 'bg-green-100 text-green-800' : 
-                                    payment.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : 
-                                    'bg-red-100 text-red-800'
-                                  }`}>
-                                    {payment.status}
-                                  </span>
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                  {payment.receipt_url ? (
-                                    <a 
-                                      href={payment.receipt_url} 
-                                      target="_blank" 
-                                      rel="noopener noreferrer"
-                                      className="text-primary hover:text-primary-dark flex items-center gap-1"
-                                    >
-                                      <Eye size={14} />
-                                      View
-                                    </a>
-                                  ) : 'N/A'}
-                                </td>
-                              </tr>
-                            ))
-                          }
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
+              {/* Payment information message */}
+              <div className="mb-8">
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-start">
+                  <Info className="text-blue-500 mr-3 mt-0.5 flex-shrink-0" size={20} />
+                  <div>
+                    <p className="text-blue-800 font-medium">Payment data is loaded directly from Stripe</p>
+                    <p className="text-blue-600 text-sm mt-1">
+                      Payment information is fetched in real-time from Stripe rather than from the database.
+                      This ensures the most up-to-date payment information is always available.
+                    </p>
+                  </div>
                 </div>
               </div>
               
-              {/* Debug information for admins */}
-              <div className="mt-8 border-t pt-8">
-                <details className="text-sm text-gray-500">
-                  <summary className="cursor-pointer font-medium mb-2">Debug information (Admin only)</summary>
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <div className="mb-4">
-                      <p className="font-medium mb-1">User information:</p>
-                      <ul className="list-disc list-inside pl-4">
-                        <li>ID: {selectedUser.id}</li>
-                        <li>Email: {selectedUser.email}</li>
-                        <li>Display Name: {selectedUser.displayName || 'Not provided'}</li>
-                        <li>Name: {selectedUser.name || 'Not provided'}</li>
-                      </ul>
-                    </div>
-                    <div>
-                      <p className="font-medium mb-1">Payment information:</p>
-                      <ul className="list-disc list-inside pl-4">
-                        <li>Total payments loaded: {Array.isArray(selectedUser.payments) ? selectedUser.payments.length : 0}</li>
-                        <li>Successful payments: {Array.isArray(selectedUser.payments) ? 
-                          selectedUser.payments.filter(p => p && p.status === 'succeeded').length : 0}</li>
-                        <li>Successful non-refunded payments: {Array.isArray(selectedUser.payments) ? 
-                          selectedUser.payments.filter(p => 
-                            p && p.status === 'succeeded' && 
-                            !p.refunded && 
-                            !(p.description?.toLowerCase().includes('refund'))
-                          ).length : 0}
-                        </li>
-                        <li>Pending payments: {Array.isArray(selectedUser.payments) ? 
-                          selectedUser.payments.filter(p => p && p.status === 'pending').length : 0}</li>
-                        <li>Failed payments: {Array.isArray(selectedUser.payments) ? 
-                          selectedUser.payments.filter(p => p && p.status === 'failed').length : 0}</li>
-                        <li>Refunded payments: {Array.isArray(selectedUser.payments) ? 
-                          selectedUser.payments.filter(p => 
-                            p && (p.refunded || (p.description?.toLowerCase().includes('refund')))
-                          ).length : 0}
-                        </li>
-                        <li>Payment IDs: {Array.isArray(selectedUser.payments) && selectedUser.payments.length > 0 ? 
-                          selectedUser.payments
-                            .filter(p => p && p.id)
-                            .map(p => p.id)
-                            .join(', ')
-                            .substring(0, 100) + '...' : 'None'}
-                        </li>
-                      </ul>
-                    </div>
+              {/* Payment History Section - Direct from Stripe */}
+              <div className="bg-white rounded-xl shadow-lg overflow-hidden mt-6">
+                <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+                  <div className="flex items-center">
+                    <CreditCard className="text-primary mr-3" size={24} />
+                    <h2 className="text-2xl font-bold text-primary">Payment History</h2>
                   </div>
-                </details>
+                  
+                  <button
+                    onClick={() => fetchStripePayments(selectedUser.email || '', selectedUser.uid)}
+                    disabled={isLoadingStripePayments}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      isLoadingStripePayments
+                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                        : 'bg-primary text-white hover:bg-primary/90'
+                    }`}
+                  >
+                    {isLoadingStripePayments ? (
+                      <>
+                        <Loader2 size={16} className="animate-spin" />
+                        Loading...
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCw size={16} />
+                        Refresh Payments
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
             </div>
           ) : (
@@ -809,6 +880,40 @@ export default function StudentsPage() {
       </div>
       
       {isClient && <Footer />}
+
+      {/* Toast Notification */}
+      {isClient && (
+        <div
+          className={`fixed bottom-4 right-4 z-50 p-4 rounded-lg shadow-lg max-w-md transition-all duration-300 transform ${
+            toast.visible ? 'translate-y-0 opacity-100' : 'translate-y-20 opacity-0 pointer-events-none'
+          } ${
+            toast.type === 'success'
+              ? 'bg-green-500 text-white'
+              : toast.type === 'error'
+              ? 'bg-red-500 text-white'
+              : 'bg-blue-500 text-white'
+          }`}
+        >
+          <div className="flex items-center">
+            {toast.type === 'success' && (
+              <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
+              </svg>
+            )}
+            {toast.type === 'error' && (
+              <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
+              </svg>
+            )}
+            {toast.type === 'info' && (
+              <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+            )}
+            <span>{toast.message}</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 } 
