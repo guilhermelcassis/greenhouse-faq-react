@@ -6,7 +6,6 @@ import { useAuth } from '@/lib/auth';
 import { User, Search, CreditCard, FileText, Clock, ArrowLeft, Mail, Phone, Eye, RefreshCw, Info, Loader2 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { Footer } from '@/components/Footer';
-import { getCache, setCache, clearCache } from '@/lib/cache-utils';
 
 interface Payment {
   id: string;
@@ -117,21 +116,6 @@ export default function StudentsPage() {
       setIsLoading(true);
       setError(null);
       
-      // Check cache first
-      const cacheKey = 'all_users_cache';
-      const cachedUsers = getCache<UserProfile[]>(cacheKey);
-      
-      if (cachedUsers) {
-        console.log(`Using cached data for all users (${cachedUsers.length} users)`);
-        setAllUsers(cachedUsers);
-        setSearchResults(cachedUsers);
-        setIsLoading(false);
-        return;
-      }
-      
-      // No valid cache, fetch from API
-      console.log('No valid cache found, fetching users from API');
-      
       // Get Firebase token for auth
       const token = await user?.getIdToken();
       
@@ -147,11 +131,6 @@ export default function StudentsPage() {
       
       const data = await response.json();
       console.log('Received users data:', data.users?.[0]); // Log first user to see structure
-      
-      // Cache the result
-      if (data.users && Array.isArray(data.users)) {
-        setCache(cacheKey, data.users);
-      }
       
       setAllUsers(data.users || []);
       setSearchResults(data.users || []);
@@ -309,24 +288,9 @@ export default function StudentsPage() {
       setIsLoading(true);
       setError(null); // Clear any previous errors
       
-      // Check cache first
-      const cacheKey = `user_details_${userId}`;
-      const cachedUserDetails = getCache<UserProfile>(cacheKey);
-      
-      if (cachedUserDetails) {
-        console.log(`Using cached data for user ${userId}`);
-        setSelectedUser(cachedUserDetails);
-        setIsLoading(false);
-        
-        // Auto-fetch Stripe payments after loading user details
-        if (cachedUserDetails.email) {
-          fetchStripePayments(cachedUserDetails.email, cachedUserDetails.uid);
-        }
-        return;
-      }
-      
-      // No valid cache, fetch from API
-      console.log(`No valid cache found, fetching details for user ${userId} from API`);
+      // Reset stripe payment data before fetching new data
+      setStripePaymentStats(null);
+      setStripePayments([]);
       
       // Get Firebase token for auth
       const token = await user?.getIdToken();
@@ -363,9 +327,7 @@ export default function StudentsPage() {
       }
       
       console.log('Received user details:', data.user); // Log detailed user data
-      
-      // Cache the result
-      setCache(cacheKey, data.user);
+
       
       setSelectedUser(data.user);
       
@@ -383,8 +345,6 @@ export default function StudentsPage() {
 
   // Refresh all users data
   const refreshAllUsers = async () => {
-    // Clear the cache for all users
-    clearCache('all_users_cache');
     fetchUsers();
   };
 
@@ -428,6 +388,10 @@ export default function StudentsPage() {
       return;
     }
     
+    // Reset stripe payment stats and payments when selecting a new user
+    setStripePaymentStats(null);
+    setStripePayments([]);
+    
     fetchUserDetails(userId);
   };
 
@@ -454,16 +418,13 @@ export default function StudentsPage() {
       .join(' ');
   };
 
-  // Refresh user data - bypass cache and force refresh
+  // Refresh user data - force refresh
   const refreshUserData = async () => {
     if (!selectedUser) return;
     
     setIsRefreshing(true);
     
-    try {
-      // Clear the cache for this user
-      clearCache(`user_details_${selectedUser.id}`);
-      
+    try {     
       // Fetch fresh data
       await fetchUserDetails(selectedUser.id);
     } finally {
@@ -649,7 +610,12 @@ export default function StudentsPage() {
                       <span className="font-medium text-green-800">Total Spent (Stripe)</span>
                     </div>
                     <p className="text-2xl font-bold text-gradient-green">
-                      {stripePaymentStats ? (
+                      {isLoadingStripePayments ? (
+                        <span className="flex items-center gap-2">
+                          <Loader2 size={18} className="animate-spin text-gray-400" />
+                          <span className="text-gray-400">Loading...</span>
+                        </span>
+                      ) : stripePaymentStats ? (
                         formatCurrency(stripePaymentStats.totalSpent)
                       ) : (
                         <span className="text-gray-400">No data</span>
@@ -679,10 +645,24 @@ export default function StudentsPage() {
                       <span className="font-medium text-blue-800">Successful Payments</span>
                     </div>
                     <p className="text-2xl font-bold text-gradient-green">
-                      {stripePaymentStats?.successfulPayments || 0}
+                      {isLoadingStripePayments ? (
+                        <span className="flex items-center gap-2">
+                          <Loader2 size={18} className="animate-spin text-gray-400" />
+                          <span className="text-gray-400">Loading...</span>
+                        </span>
+                      ) : (
+                        stripePaymentStats?.successfulPayments || 0
+                      )}
                     </p>
                     <p className="text-xs text-gray-500 mt-1">
-                      Total payments: {stripePaymentStats?.totalPayments || 0}
+                      Total payments: {isLoadingStripePayments ? (
+                        <span className="inline-flex items-center">
+                          <Loader2 size={12} className="animate-spin text-gray-400 mr-1" />
+                          Loading...
+                        </span>
+                      ) : (
+                        stripePaymentStats?.totalPayments || 0
+                      )}
                     </p>
                   </div>
                   
@@ -692,7 +672,12 @@ export default function StudentsPage() {
                       <span className="font-medium text-yellow-800">Recent Activity</span>
                     </div>
                     <p className="text-md text-gray-700">
-                      {stripePayments && stripePayments.length > 0 ? (
+                      {isLoadingStripePayments ? (
+                        <span className="flex items-center gap-2">
+                          <Loader2 size={18} className="animate-spin text-gray-400" />
+                          <span className="text-gray-400">Loading payment data...</span>
+                        </span>
+                      ) : stripePayments && stripePayments.length > 0 ? (
                         `Last payment: ${new Date(Number(stripePayments[0].created) * 1000).toLocaleDateString()}`
                       ) : (
                         'No payment history'
