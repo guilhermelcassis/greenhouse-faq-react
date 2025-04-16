@@ -6,6 +6,40 @@ import { useAuth } from '@/lib/auth';
 import { User, Search, CreditCard, FileText, Clock, ArrowLeft, Mail, Phone, Eye, RefreshCw, Info, Loader2 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { Footer } from '@/components/Footer';
+import dynamic from 'next/dynamic';
+
+// Client-side only component for payment refresh button
+const PaymentRefreshButton = dynamic(() => Promise.resolve(({ 
+  onClick, 
+  isLoading, 
+  disabled 
+}: { 
+  onClick: () => void; 
+  isLoading: boolean; 
+  disabled?: boolean;
+}) => (
+  <button
+    onClick={onClick}
+    disabled={isLoading || disabled}
+    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+      isLoading || disabled
+        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+        : 'bg-primary text-white hover:bg-primary/90'
+    }`}
+  >
+    {isLoading ? (
+      <>
+        <Loader2 size={16} className="animate-spin" />
+        Loading...
+      </>
+    ) : (
+      <>
+        <RefreshCw size={16} />
+        Refresh Payments
+      </>
+    )}
+  </button>
+)), { ssr: false });
 
 interface Payment {
   id: string;
@@ -171,7 +205,7 @@ export default function StudentsPage() {
       
       // Set a timeout for fetch (client-side timeout)
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 120000); // 2-minute client-side timeout
+      const timeoutId = setTimeout(() => controller.abort(), 180000); // 3-minute client-side timeout (increased)
       
       try {
         const response = await fetch('/api/admin/user-payments', {
@@ -184,7 +218,7 @@ export default function StudentsPage() {
             email: userEmail,
             userId: userId,
             // Request a longer timeout if this is a retry
-            requestTimeout: retryCount > 0 ? 120000 : 60000 // Ask for 2 minutes on retry, 1 minute for first try
+            requestTimeout: retryCount > 0 ? 150000 : 90000 // Ask for 2.5 minutes on retry, 1.5 minute for first try
           }),
           signal: controller.signal
         });
@@ -331,17 +365,15 @@ export default function StudentsPage() {
       
       setSelectedUser(data.user);
       
-      // Auto-fetch Stripe payments after loading user details
-      if (data.user.email) {
-        fetchStripePayments(data.user.email, data.user.uid);
-      }
+      // Only auto-fetch Stripe payments after component is mounted (client-side)
+      // This will be handled by a useEffect below instead
     } catch (error) {
       console.error('Error fetching user details:', error);
       setError(error instanceof Error ? error.message : 'An error occurred while fetching user details');
     } finally {
       setIsLoading(false);
     }
-  }, [user, fetchStripePayments]);
+  }, [user]);
 
   // Refresh all users data
   const refreshAllUsers = async () => {
@@ -442,6 +474,13 @@ export default function StudentsPage() {
       return () => clearTimeout(timer);
     }
   }, [toast.visible]);
+
+  // Add a useEffect to fetch payments after the component mounts on client side
+  useEffect(() => {
+    if (isClient && selectedUser && selectedUser.email) {
+      fetchStripePayments(selectedUser.email, selectedUser.uid);
+    }
+  }, [isClient, selectedUser, fetchStripePayments]);
 
   if (loading || isLoading) {
     return (
@@ -709,27 +748,12 @@ export default function StudentsPage() {
                     <h2 className="text-2xl font-bold text-primary">Payment History</h2>
                   </div>
                   
-                  <button
-                    onClick={() => fetchStripePayments(selectedUser.email || '', selectedUser.uid)}
-                    disabled={isLoadingStripePayments}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      isLoadingStripePayments
-                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                        : 'bg-primary text-white hover:bg-primary/90'
-                    }`}
-                  >
-                    {isLoadingStripePayments ? (
-                      <>
-                        <Loader2 size={16} className="animate-spin" />
-                        Loading...
-                      </>
-                    ) : (
-                      <>
-                        <RefreshCw size={16} />
-                        Refresh Payments
-                      </>
-                    )}
-                  </button>
+                  {isClient && (
+                    <PaymentRefreshButton
+                      onClick={() => fetchStripePayments(selectedUser.email || '', selectedUser.uid)}
+                      isLoading={isLoadingStripePayments}
+                    />
+                  )}
                 </div>
               </div>
             </div>
