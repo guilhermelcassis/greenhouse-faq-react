@@ -4,9 +4,9 @@ import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
 import { formatDistanceToNow } from 'date-fns';
-import { User, LogOut, CreditCard, Clock, FileText } from 'lucide-react';
+import { User, LogOut, CreditCard, Clock, FileText, RefreshCw } from 'lucide-react';
 import { Footer } from '@/components/Footer';
-import { getCache, setCache } from '@/lib/cache-utils';
+import { getCache, setCache, clearCache } from '@/lib/cache-utils';
 
 
 // Utility function to convert name to proper case
@@ -67,6 +67,7 @@ export default function ProfilePage() {
   const [isEditingName, setIsEditingName] = useState(false);
   const [nameInput, setNameInput] = useState<string>('');
   const [isSavingName, setIsSavingName] = useState(false);
+  const [isRefreshingPayments, setIsRefreshingPayments] = useState(false);
   const [toast, setToast] = useState<{message: string; type: 'success' | 'error' | 'info'; visible: boolean}>({
     message: '',
     type: 'info',
@@ -92,12 +93,12 @@ export default function ProfilePage() {
     setIsClient(true);
   }, []);
   
-  const fetchStripePayments = useCallback(async () => {
+  const fetchStripePayments = useCallback(async (skipCache: boolean = false) => {
     try {
       setIsLoading(true);
       
-      // Check cache first if user is logged in
-      if (user) {
+      // Check cache first if user is logged in and skipCache is false
+      if (user && !skipCache) {
         const cacheKey = `user_payments_${user.uid}`;
         const cachedPayments = getCache<StripePayment[]>(cacheKey);
         
@@ -157,7 +158,7 @@ export default function ProfilePage() {
       // Calculate total spent
       calculateTotalSpent(paymentsData);
       
-      // Cache the payments data if user is logged in
+      // Cache the payments data if user is logged in and we got data back
       if (user && paymentsData.length > 0) {
         const cacheKey = `user_payments_${user.uid}`;
         setCache(cacheKey, paymentsData);
@@ -165,6 +166,12 @@ export default function ProfilePage() {
       
     } catch (error) {
       console.error('Error fetching payment history:', error);
+      // Show toast notification for error
+      setToast({
+        message: 'Failed to load payment history. Please try again.',
+        type: 'error',
+        visible: true
+      });
     } finally {
       setIsLoading(false);
     }
@@ -186,17 +193,54 @@ export default function ProfilePage() {
           return false;
         })
         .forEach((payment: StripePayment) => {
-          // Use amount_eur if available, otherwise convert from original currency
-          if (payment.amount_eur) {
-            console.log(`Using amount_eur for ${payment.id}:`, payment.amount_eur);
-            totalEuros += payment.amount_eur;
+          // Always prefer amount_eur if available - it's our standardized EUR amount
+          if (payment.amount_eur !== null && payment.amount_eur !== undefined) {
+            // Check if amount_eur appears to be in cents (Stripe standard) or already converted
+            if (payment.amount_eur > 100) {
+              totalEuros += payment.amount_eur / 100;
+              console.log(`Using amount_eur for ${payment.id}: ${payment.amount_eur} (${payment.amount_eur / 100} EUR)`);
+            } else {
+              totalEuros += payment.amount_eur;
+              console.log(`Using pre-converted amount_eur for ${payment.id}: ${payment.amount_eur} EUR`);
+            }
+          } else {
+            // Fallback to manual conversion
+            let convertedAmount = payment.amount;
+            
+            // For raw Stripe amounts (in cents/smallest currency unit)
+            const conversionRates: Record<string, number> = {
+              'eur': 1.0,
+              'usd': 0.92,
+              'gbp': 1.15,
+              'brl': 0.17
+            };
+            
+            const currencyKey = payment.currency.toLowerCase();
+            if (conversionRates[currencyKey]) {
+              const rate = conversionRates[currencyKey];
+              
+              // Special handling for BRL which might be stored differently
+              if (currencyKey === 'brl' && payment.amount > 10000) {
+                convertedAmount = (payment.amount / 100) * rate;
+                console.log(`Special BRL conversion for ${payment.id}: ${payment.amount/100} BRL = ${convertedAmount} EUR (scaled down)`);
+              } else {
+                convertedAmount = payment.amount * rate / 100; // Convert from cents to EUR
+                console.log(`Standard conversion for ${payment.id}: ${payment.amount/100} ${payment.currency} = ${convertedAmount} EUR`);
+              }
+              
+              totalEuros += convertedAmount;
+            } else {
+              // Unknown currency - convert from cents to whole units but don't convert currency
+              convertedAmount = payment.amount / 100;
+              console.log(`Unknown currency ${payment.currency} for ${payment.id}, using raw amount: ${convertedAmount}`);
+              totalEuros += convertedAmount;
+            }
           }
-          // Add fallback currency conversion if needed
         });
     }
     
-    console.log('Total spent in EUR:', totalEuros / 100);
-    setTotalSpent(totalEuros / 100);
+    console.log('Total spent in EUR:', totalEuros);
+    setTotalSpent(totalEuros);
   };
   
   useEffect(() => {
@@ -339,6 +383,48 @@ export default function ProfilePage() {
       router.push('/');
     } catch (error) {
       console.error('Error signing out:', error);
+    }
+  };
+  
+  // Add new function to handle refresh button click
+  const handleRefreshPayments = async () => {
+    if (isRefreshingPayments) return; // Prevent multiple clicks
+    
+    setIsRefreshingPayments(true);
+    
+    try {
+      // Clear the cache for this user
+      if (user) {
+        const cacheKey = `user_payments_${user.uid}`;
+        clearCache(cacheKey);
+        console.log(`[Cache] Cleared payments cache for ${user.email}`);
+      }
+      
+      // Show toast notification
+      setToast({
+        message: 'Refreshing payment data...',
+        type: 'info',
+        visible: true
+      });
+      
+      // Fetch payments from API, skipping cache
+      await fetchStripePayments(true);
+      
+      // Show success notification
+      setToast({
+        message: 'Payment data refreshed successfully!',
+        type: 'success',
+        visible: true
+      });
+    } catch (error) {
+      console.error('Error refreshing payments:', error);
+      setToast({
+        message: 'Failed to refresh payment data. Please try again.',
+        type: 'error',
+        visible: true
+      });
+    } finally {
+      setIsRefreshingPayments(false);
     }
   };
   
@@ -593,9 +679,26 @@ export default function ProfilePage() {
       {/* Payment History */}
       <div className="max-w-5xl mx-auto px-4 mb-16">
         <div className="bg-white rounded-xl shadow-lg border-green-subtle card-hover-effect overflow-hidden">
-          <div className="p-6 border-b border-gray-100 flex items-center">
-            <FileText className="text-primary mr-3" size={24} />
-            <h2 className="text-2xl font-bold text-gradient-green">Payment History</h2>
+          <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+            <div className="flex items-center">
+              <FileText className="text-primary mr-3" size={24} />
+              <h2 className="text-2xl font-bold text-gradient-green">Payment History</h2>
+            </div>
+            
+            {/* Add refresh button */}
+            <button 
+              onClick={handleRefreshPayments}
+              disabled={isRefreshingPayments || isLoading}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                isRefreshingPayments || isLoading
+                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                  : 'bg-green-50 text-primary hover:bg-green-100'
+              }`}
+              title="Refresh payment data"
+            >
+              <RefreshCw size={16} className={isRefreshingPayments ? 'animate-spin' : ''} />
+              Refresh
+            </button>
           </div>
           
           {isLoading ? (
@@ -653,11 +756,27 @@ export default function ProfilePage() {
                             style: 'currency',
                             currency: 'EUR',
                           }).format(payment.balance_transaction.amount / 100)
+                        ) : payment.amount_eur !== null && payment.amount_eur !== undefined ? (
+                          // Use amount_eur if available (divide by 100 if needed)
+                          new Intl.NumberFormat('en-US', {
+                            style: 'currency',
+                            currency: 'EUR',
+                          }).format(payment.amount_eur > 100 ? payment.amount_eur / 100 : payment.amount_eur)
                         ) : (
+                          // Fallback to displaying in original currency
                           new Intl.NumberFormat('en-US', {
                             style: 'currency',
                             currency: payment.currency.toUpperCase(),
-                          }).format((payment.amount_eur || payment.amount) / 100)
+                          }).format(payment.amount / 100)
+                        )}
+                        {/* Show original amount alongside EUR conversion when it's a different currency */}
+                        {payment.currency.toLowerCase() !== 'eur' && payment.amount_eur && (
+                          <span className="text-xs ml-1 text-gray-500">
+                            ({new Intl.NumberFormat('en-US', {
+                              style: 'currency',
+                              currency: payment.currency.toUpperCase(),
+                            }).format(payment.amount / 100)})
+                          </span>
                         )}
                       </td>
                       <td className="px-6 py-5 whitespace-nowrap text-sm">

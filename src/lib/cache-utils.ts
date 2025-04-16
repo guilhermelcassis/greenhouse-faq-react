@@ -184,4 +184,123 @@ function pruneOldestCaches(): void {
   } catch (error) {
     console.error(`[Cache] Error pruning caches:`, error);
   }
+}
+
+/**
+ * Simple in-memory cache utility functions
+ */
+
+// Define a type for the cache data
+type CacheData<T> = {
+  value: T;
+  timestamp: number;
+  version: number; // Added version for cache busting
+  expires: number;
+};
+
+// Current cache version - increment when search logic changes
+const CACHE_VERSION = 2; // Increased version to bust existing caches
+
+// In-memory cache storage
+const memoryCache: Record<string, CacheData<any>> = {};
+
+// Default cache duration in milliseconds (15 minutes)
+const DEFAULT_CACHE_DURATION = 15 * 60 * 1000;
+
+/**
+ * Get a cached value by key from memory cache
+ * @param key Cache key
+ * @param maxAge Optional maximum age in milliseconds
+ * @returns The cached value or undefined if not found or expired
+ */
+export function getMemoryCache<T>(key: string, maxAge?: number): T | undefined {
+  const cacheData = memoryCache[key];
+  if (!cacheData) {
+    console.log(`[Cache] No memory cache found for ${key}`);
+    return undefined;
+  }
+
+  // Check if the cache version matches the current version
+  if (cacheData.version !== CACHE_VERSION) {
+    console.log(`[Cache] Memory cache version mismatch for ${key}, invalidating`);
+    delete memoryCache[key];
+    return undefined;
+  }
+
+  // Check if the cache has expired
+  const now = Date.now();
+  if (cacheData.expires < now) {
+    console.log(`[Cache] Memory cache for ${key} expired`);
+    delete memoryCache[key];
+    return undefined;
+  }
+
+  // If maxAge is provided, check if the cache is still within the maxAge
+  if (maxAge !== undefined) {
+    const age = now - cacheData.timestamp;
+    if (age > maxAge) {
+      console.log(`[Cache] Memory cache for ${key} is older than maxAge (${age}ms > ${maxAge}ms)`);
+      delete memoryCache[key];
+      return undefined;
+    }
+  }
+
+  const formattedTime = new Date(cacheData.timestamp).toLocaleTimeString();
+  console.log(`[Cache] Using memory cached ${key} data from ${formattedTime}`);
+  return cacheData.value;
+}
+
+/**
+ * Set a value in the memory cache
+ * @param key Cache key
+ * @param value Value to cache
+ * @param duration Optional cache duration in milliseconds (defaults to 15 minutes)
+ */
+export function setMemoryCache<T>(key: string, value: T, duration: number = DEFAULT_CACHE_DURATION): void {
+  const timestamp = Date.now();
+  const expires = timestamp + duration;
+  
+  memoryCache[key] = {
+    value,
+    timestamp,
+    version: CACHE_VERSION,
+    expires
+  };
+  
+  console.log(`[Cache] Cached ${key} data in memory (expires in ${duration / 1000}s)`);
+}
+
+/**
+ * Clear a specific memory cache entry
+ * @param key Cache key to clear
+ */
+export function clearMemoryCache(key: string): void {
+  if (memoryCache[key]) {
+    delete memoryCache[key];
+    console.log(`[Cache] Cleared memory cache for ${key}`);
+  }
+}
+
+/**
+ * Clear all memory cache entries
+ */
+export function clearAllMemoryCache(): void {
+  Object.keys(memoryCache).forEach(key => {
+    delete memoryCache[key];
+  });
+  console.log(`[Cache] Cleared all memory cache entries`);
+}
+
+/**
+ * Force refresh of specific cached data in memory
+ * @param key Cache key to refresh
+ * @returns true if the cache was cleared, false if the key wasn't in the cache
+ */
+export function invalidateMemoryCache(key: string): boolean {
+  if (memoryCache[key]) {
+    delete memoryCache[key];
+    console.log(`[Cache] Invalidated memory cache for ${key}`);
+    return true;
+  }
+  return false;
 } 
