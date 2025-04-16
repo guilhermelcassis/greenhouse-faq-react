@@ -12,6 +12,14 @@ export interface PaymentMethodDetails {
   type?: string;
 }
 
+// Define an interface for payment error information
+export interface PaymentError {
+  message?: string | null;
+  code?: string | null;
+  decline_code?: string | null;
+  type?: string | null;
+}
+
 // Define a standardized interface for payment data returned by our helper functions
 export interface StripePaymentData {
   id: string;
@@ -34,6 +42,8 @@ export interface StripePaymentData {
   metadata?: Record<string, string>;
   // Add specific field for EUR conversion
   amount_eur?: number;
+  // Add field for payment error information
+  last_payment_error?: PaymentError | null;
 }
 
 // Frontend Stripe instance - safely handle missing keys

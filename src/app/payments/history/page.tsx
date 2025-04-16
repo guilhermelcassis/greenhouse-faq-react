@@ -67,8 +67,13 @@ export default function PaymentHistory() {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(25);
+  const [itemsPerPage] = useState(25); // Fixed at 25 items per page
   const [statusFilter, setStatusFilter] = useState<string>('all');
+
+  // Stripe pagination state
+  const [hasMore, setHasMore] = useState(false);
+  const [nextPageCursor, setNextPageCursor] = useState<string | null>(null);
+  const [prevPageCursors, setPrevPageCursors] = useState<string[]>([]);
 
   // Update these states to properly manage sync status
   const [isSyncing, setIsSyncing] = useState(false);
@@ -77,38 +82,22 @@ export default function PaymentHistory() {
   const [newPaymentsAdded, setNewPaymentsAdded] = useState<number | null>(null);
   const [showToast, setShowToast] = useState(false);
 
-  const fetchPaymentHistory = useCallback(async () => {
+  const fetchPaymentHistory = useCallback(async (startingAfter?: string) => {
     try {
       setIsLoading(true);
       setError(null); // Clear any previous errors
       
-      // Check cache first
-      const cacheKey = 'payment_history_all_cache';
-      const cachedPayments = getCache<Charge[]>(cacheKey);
-      
-      if (cachedPayments) {
-        console.log(`[Cache] Using cached payment history data (${cachedPayments.length} charges)`);
-        
-        const updatedCharges = cachedPayments.map((charge: Charge) => {
-          if (charge.id === 'ch_some_specific_id_here') {
-            return { ...charge, refunded: true };
-          }
-          return charge;
-        });
-        
-        setPayments(updatedCharges || []);
-        setIsLoading(false);
-        return;
-      }
-      
-      // No valid cache, fetch from API
-      console.log('[Cache] No valid cache found, fetching payment history from API');
-      
       // Get Firebase token for auth
       const token = await user?.getIdToken();
-      console.log('Got authentication token, fetching payment history from database...');
+      console.log('Got authentication token, fetching payment history directly from Stripe...');
       
-      const response = await fetch('/api/payments/history', {
+      // Construct the API URL with pagination parameters
+      let apiUrl = `/api/payments/stripe-history?limit=${itemsPerPage}`;
+      if (startingAfter) {
+        apiUrl += `&starting_after=${startingAfter}`;
+      }
+      
+      const response = await fetch(apiUrl, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -117,6 +106,44 @@ export default function PaymentHistory() {
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         console.error('Payment history API error:', errorData);
+        
+        // If we get an unauthorized error, try the original API as fallback
+        if (response.status === 403) {
+          console.log('Falling back to original payments history API...');
+          const fallbackResponse = await fetch('/api/payments/history', {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
+          
+          if (!fallbackResponse.ok) {
+            const fallbackErrorData = await fallbackResponse.json().catch(() => ({}));
+            console.error('Fallback API error:', fallbackErrorData);
+            throw new Error(fallbackErrorData.details || 'Failed to fetch payment history');
+          }
+          
+          const fallbackData = await fallbackResponse.json();
+          if (!fallbackData.charges) {
+            console.warn('No charges data returned from fallback API:', fallbackData);
+            setPayments([]);
+          } else {
+            console.log(`Successfully loaded ${fallbackData.charges.length} charges from database fallback`);
+            
+            // Format the data
+            const formattedCharges = fallbackData.charges.map((charge: Charge) => {
+              return {
+                ...charge,
+                created_formatted: formatDate(charge.created)
+              };
+            });
+            
+            setPayments(formattedCharges || []);
+            // Since we're using the fallback, we don't have pagination info from Stripe
+            setHasMore(false);
+          }
+          return;
+        }
+        
         throw new Error(errorData.details || 'Failed to fetch payment history');
       }
       
@@ -126,25 +153,21 @@ export default function PaymentHistory() {
         console.warn('No charges data returned from API:', data);
         setPayments([]);
       } else {
-        console.log(`Successfully loaded ${data.charges.length} charges from database`);
+        console.log(`Successfully loaded ${data.charges.length} charges from Stripe`);
         
-        // Cache the raw data from API
-        setCache(cacheKey, data.charges);
+        // Update pagination information
+        setHasMore(data.has_more);
+        setNextPageCursor(data.next_page_cursor);
         
-        const updatedCharges = data.charges.map((charge: Charge) => {
-          if (charge.id === 'ch_some_specific_id_here') {
-            return { ...charge, refunded: true };
-          }
-          return charge;
+        // Format and process the charges
+        const formattedCharges = data.charges.map((charge: Charge) => {
+          return {
+            ...charge,
+            created_formatted: formatDate(charge.created)
+          };
         });
-        setPayments(updatedCharges || []);
-        console.log('Payment records received:', data.charges.map((c: Charge) => ({
-          id: c.id,
-          status: c.status,
-          email: c.billing_details?.email || '',
-          amount: c.amount,
-          currency: c.currency
-        })).slice(0, 3));
+        
+        setPayments(formattedCharges || []);
       }
     } catch (error) {
       console.error('Error fetching payment history:', error);
@@ -152,7 +175,7 @@ export default function PaymentHistory() {
     } finally {
       setIsLoading(false);
     }
-  }, [user]);
+  }, [user, itemsPerPage]);
   
   useEffect(() => {
     if (!loading) {
@@ -273,6 +296,45 @@ export default function PaymentHistory() {
     }).format(charge.amount / 100) + ' (approx.)';
   };
 
+  // Navigate to next page of results
+  const nextPage = () => {
+    if (hasMore && nextPageCursor) {
+      // Store the current cursor for back navigation
+      setPrevPageCursors(prev => [...prev, nextPageCursor]);
+      
+      // Fetch the next page from Stripe
+      fetchPaymentHistory(nextPageCursor);
+      
+      // Update the UI page number
+      setCurrentPage(prev => prev + 1);
+    }
+  };
+
+  // Navigate to previous page of results
+  const prevPage = () => {
+    if (currentPage > 1) {
+      // Get the cursor to use for fetching the previous page
+      const newPrevPageCursors = [...prevPageCursors];
+      const cursorToUse = newPrevPageCursors.length > 1 ? newPrevPageCursors[newPrevPageCursors.length - 2] : null;
+      
+      // Remove the last cursor from the array
+      newPrevPageCursors.pop();
+      setPrevPageCursors(newPrevPageCursors);
+      
+      // Fetch the previous page
+      if (currentPage === 2) {
+        // For the first page, don't use a cursor
+        fetchPaymentHistory();
+      } else {
+        // For other pages, use the appropriate cursor
+        fetchPaymentHistory(cursorToUse || undefined);
+      }
+      
+      // Update the UI page number
+      setCurrentPage(prev => prev - 1);
+    }
+  };
+
   // Filter payments based on search term, date range, and status
   const filteredPayments = payments
     .filter(charge => {
@@ -281,18 +343,13 @@ export default function PaymentHistory() {
         return false;
       }
       
-      // Explicitly filter out refunded charges regardless of other filters
+      // Filter out refunded charges if requested
       if (charge.refunded === true) {
         return false;
       }
       
       // Filter out charges with refund in the description
       if (charge.description?.toLowerCase().includes('refund')) {
-        return false;
-      }
-      
-      // Filter out failed payments
-      if (charge.status === 'failed') {
         return false;
       }
       
@@ -326,29 +383,17 @@ export default function PaymentHistory() {
       }
       
       return true;
-    })
-    .sort((a, b) => b.created - a.created); // Sort by date, newest first
+    });
 
-  // Calculate pagination
-  const totalPages = Math.ceil(filteredPayments.length / itemsPerPage);
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = filteredPayments.slice(indexOfFirstItem, indexOfLastItem);
-
-  // Handle page change
-  const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
-
-  // Reset pagination when filters change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm, startDate, endDate, statusFilter]);
+  // If we're applying client-side filtering, we need to handle pagination differently
+  const paginatedPayments = filteredPayments;
 
   // Calculate totals for filtered payments - only count succeeded and pending, not failed
-  const totalSuccessful = filteredPayments
+  const totalSuccessful = paginatedPayments
     .filter(charge => charge.status === 'succeeded' && !charge.refunded && !(charge.description?.toLowerCase().includes('refund')))
     .reduce((sum, charge) => sum + convertToEUR(charge), 0) / 100;
     
-  const totalPending = filteredPayments
+  const totalPending = paginatedPayments
     .filter(charge => charge.status === 'pending')
     .reduce((sum, charge) => sum + convertToEUR(charge), 0) / 100;
 
@@ -362,8 +407,9 @@ export default function PaymentHistory() {
       setError(null);
       setNewPaymentsAdded(null);
       
-      // Clear the cache before fetching new data
-      clearCache('payment_history_all_cache');
+      // Reset pagination state when syncing
+      setPrevPageCursors([]);
+      setCurrentPage(1);
       
       // Get Firebase token for auth
       const token = await user?.getIdToken();
@@ -438,37 +484,29 @@ export default function PaymentHistory() {
     }
   };
 
-  // Add a function to refresh the data by clearing cache
+  // Refresh the data from Stripe
   const refreshPayments = async () => {
-    // Clear the cache before fetching fresh data
-    clearCache('payment_history_all_cache');
-    
-    // Set syncing state
-    setIsSyncing(true);
-    setSyncProgress(0);
-    setNewPaymentsAdded(null);
-    
     try {
-      // Simulate progress for UI feedback
-      const progressInterval = setInterval(() => {
-        setSyncProgress(prev => {
-          const newProgress = prev + Math.random() * 20;
-          return newProgress >= 90 ? 90 : newProgress;
-        });
-      }, 300);
+      setIsSyncing(true);
+      setSyncProgress(10);
+      setError(null);
+      // Reset pagination state
+      setPrevPageCursors([]);
+      setCurrentPage(1);
       
-      // Fetch fresh data
       await fetchPaymentHistory();
       
-      // Complete progress
-      clearInterval(progressInterval);
-      setSyncProgress(100);
-      setNewPaymentsAdded(0); // Set to 0 as we don't know how many new payments were added
       setLastSyncTime(Date.now());
-      
-      // Show success toast
+      setSyncProgress(100);
       setShowToast(true);
-      setTimeout(() => setShowToast(false), 5000);
+      
+      // Hide toast after 3 seconds
+      setTimeout(() => {
+        setShowToast(false);
+      }, 3000);
+    } catch (error) {
+      console.error('Error refreshing payments:', error);
+      setError(error instanceof Error ? error.message : 'Failed to refresh payments');
     } finally {
       setIsSyncing(false);
     }
@@ -721,20 +759,10 @@ export default function PaymentHistory() {
             </div>
           </div>
           
-          {/* Second row for items per page and clear filters */}
+          {/* Second row for clear filters */}
           <div className="mt-6 flex flex-col sm:flex-row justify-between items-center">
             <div className="w-full sm:w-48 mb-4 sm:mb-0">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Items per page</label>
-              <select
-                className="py-3 px-4 border border-gray-300 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50"
-                value={itemsPerPage}
-                onChange={(e) => setItemsPerPage(Number(e.target.value))}
-              >
-                <option value={10}>10</option>
-                <option value={25}>25</option>
-                <option value={50}>50</option>
-                <option value={100}>100</option>
-              </select>
+              <p className="block text-sm font-medium text-gray-700 mb-2">Items per page: 25</p>
             </div>
             
             <button
@@ -805,19 +833,22 @@ export default function PaymentHistory() {
             <h2 className="text-xl font-bold text-gradient-green">Payments</h2>
           </div>
           
-          {currentItems.length === 0 ? (
-            <div className="p-12 text-center">
-              <div className="mb-4 text-primary opacity-50">
-                <CreditCard size={48} className="mx-auto" />
+          {/* Table content */}
+          <div className="mt-4 overflow-x-auto rounded-lg shadow ring-1 ring-black ring-opacity-5">
+            {/* No payments state */}
+            {paginatedPayments.length === 0 ? (
+              <div className="p-12 text-center">
+                <div className="mb-4 text-primary opacity-50">
+                  <AlertTriangle className="w-12 h-12 mx-auto" />
+                </div>
+                <h3 className="mb-1 text-lg font-medium">No payments found</h3>
+                <p className="text-sm text-gray-500">
+                  {isLoading ? 'Loading payment data...' : 'Try changing your filters or search term'}
+                </p>
               </div>
-              {filteredPayments.length === 0 ? 
-                <p className="text-lg text-gray-500">No payments found matching your filters.</p> : 
-                <p className="text-lg text-gray-500">No payments found.</p>}
-            </div>
-          ) : (
-            <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent">
-              <table className="min-w-full">
-                <thead className="bg-secondary/10">
+            ) : (
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
                   <tr>
                     <th className="py-4 px-4 border-b border-gray-200 text-left text-xs font-medium text-primary uppercase tracking-wider">Date</th>
                     <th className="py-4 px-4 border-b border-gray-200 text-left text-xs font-medium text-primary uppercase tracking-wider">Email</th>
@@ -829,22 +860,8 @@ export default function PaymentHistory() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {currentItems
-                    // Use a more thorough filter to absolutely ensure no refunded or failed charges display
-                    .filter(charge => {
-                      // Must be successful payment
-                      if (charge.status !== 'succeeded') return false;
-                      
-                      // Must not be refunded (using strict comparison)
-                      if (charge.refunded === true) return false;
-                      
-                      // Must not have 'refund' in description (case insensitive)
-                      if (charge.description && charge.description.toLowerCase().includes('refund')) return false;
-                      
-                      // Include all other charges
-                      return true;
-                    })
-                    .map((charge) => (
+                  {paginatedPayments
+                    .map((charge: Charge) => (
                       <tr key={charge.id} className="hover:bg-gray-50 transition-colors">
                         <td className="py-5 px-4 whitespace-nowrap">
                           <div className="text-sm font-medium text-gray-800">{formatDate(charge.created, charge)}</div>
@@ -880,109 +897,45 @@ export default function PaymentHistory() {
                     ))}
                 </tbody>
               </table>
-            </div>
-          )}
+            )}
+          </div>
           
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="px-6 py-4 flex items-center justify-between border-t border-gray-100">
-              <div className="flex-1 flex justify-between sm:hidden">
-                <button
-                  onClick={() => paginate(Math.max(1, currentPage - 1))}
-                  disabled={currentPage === 1}
-                  className={`relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md ${
-                    currentPage === 1 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-white text-gray-700 hover:bg-gray-50'
-                  }`}
-                >
-                  Previous
-                </button>
-                <button
-                  onClick={() => paginate(Math.min(totalPages, currentPage + 1))}
-                  disabled={currentPage === totalPages}
-                  className={`ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md ${
-                    currentPage === totalPages ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-white text-gray-700 hover:bg-gray-50'
-                  }`}
-                >
-                  Next
-                </button>
-              </div>
-              <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-                <div>
-                  <p className="text-sm text-gray-700">
-                    Showing <span className="font-medium">{indexOfFirstItem + 1}</span> to{' '}
-                    <span className="font-medium">{Math.min(indexOfLastItem, filteredPayments.length)}</span> of{' '}
-                    <span className="font-medium">{filteredPayments.length}</span> results
-                  </p>
-                </div>
-                <div>
-                  <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
-                    <button
-                      onClick={() => paginate(Math.max(1, currentPage - 1))}
-                      disabled={currentPage === 1}
-                      className={`relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium ${
-                        currentPage === 1 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-500 hover:bg-gray-50'
-                      }`}
-                    >
-                      <span className="sr-only">Previous</span>
-                      <ChevronLeft className="h-5 w-5" />
-                    </button>
-                    
-                    {/* Page numbers */}
-                    {Array.from({ length: totalPages }, (_, i) => i + 1)
-                      .filter(page => {
-                        // Show first page, last page, current page, and pages around current page
-                        return page === 1 || 
-                               page === totalPages || 
-                               (page >= currentPage - 1 && page <= currentPage + 1);
-                      })
-                      .map((page, i, array) => {
-                        // Add ellipsis where needed
-                        const showEllipsisBefore = i > 0 && array[i - 1] !== page - 1;
-                        const showEllipsisAfter = i < array.length - 1 && array[i + 1] !== page + 1;
-                        
-                        return (
-                          <div key={page} className="flex items-center">
-                            {showEllipsisBefore && (
-                              <span className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700">
-                                ...
-                              </span>
-                            )}
-                            
-                            <button
-                              onClick={() => paginate(page)}
-                              className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
-                                currentPage === page
-                                  ? 'z-10 bg-primary border-primary text-white hover:bg-primary/90'
-                                  : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
-                              }`}
-                            >
-                              {page}
-                            </button>
-                            
-                            {showEllipsisAfter && (
-                              <span className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700">
-                                ...
-                              </span>
-                            )}
-                          </div>
-                        );
-                      })}
-                    
-                    <button
-                      onClick={() => paginate(Math.min(totalPages, currentPage + 1))}
-                      disabled={currentPage === totalPages}
-                      className={`relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium ${
-                        currentPage === totalPages ? 'text-gray-300 cursor-not-allowed' : 'text-gray-500 hover:bg-gray-50'
-                      }`}
-                    >
-                      <span className="sr-only">Next</span>
-                      <ChevronRight className="h-5 w-5" />
-                    </button>
-                  </nav>
-                </div>
-              </div>
+          {/* Pagination Controls */}
+          <div className="flex items-center justify-between mt-4 mb-8">
+            <div className="text-sm text-gray-500">
+              Showing {paginatedPayments.length} payments
+              {hasMore && ' (more available)'}
             </div>
-          )}
+            <div className="flex space-x-2">
+              <button
+                onClick={prevPage}
+                disabled={currentPage === 1}
+                className={`flex items-center px-3 py-1 text-sm rounded-md ${
+                  currentPage === 1
+                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                    : 'bg-blue-50 text-blue-600 hover:bg-blue-100'
+                }`}
+              >
+                <ChevronLeft className="w-4 h-4 mr-1" />
+                Previous
+              </button>
+              <span className="flex items-center px-3 py-1 text-sm bg-gray-100 rounded-md">
+                Page {currentPage}
+              </span>
+              <button
+                onClick={nextPage}
+                disabled={!hasMore}
+                className={`flex items-center px-3 py-1 text-sm rounded-md ${
+                  !hasMore
+                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                    : 'bg-blue-50 text-blue-600 hover:bg-blue-100'
+                }`}
+              >
+                Next
+                <ChevronRight className="w-4 h-4 ml-1" />
+              </button>
+            </div>
+          </div>
         </div>
       </div>
       

@@ -26,7 +26,7 @@ export default function Navbar() {
   };
 
   return (
-    <nav className="w-full bg-white border-b-2 border-primary/20 fixed top-0 z-20 bg-[url('/images/pattern-light.png')] bg-repeat">
+    <nav className="w-full bg-white border-b-2 border-primary/20 fixed top-0 z-20">
       <div className="container mx-auto px-4">
         <div className="flex justify-between items-center h-16">
           {/* Logo - simplified */}
@@ -36,6 +36,7 @@ export default function Navbar() {
                 src="/dunamis-logo.png"
                 alt="Dunamis Logo"
                 fill
+                sizes="(max-width: 768px) 100vw, 128px"
                 className="object-contain"
                 priority
               />
@@ -63,9 +64,6 @@ export default function Navbar() {
             )}
             {user && user.isAdmin && (
               <NavLink href="/payments/history" currentPath={pathname} label="Payment History" />
-            )}
-            {user && user.isAdmin && (
-              <NavLink href="/payments/failed" currentPath={pathname} label="Failed Payments" />
             )}
             {user && user.isAdmin && (
               <NavLink href="/admin" currentPath={pathname} label="Admin" />
@@ -130,9 +128,6 @@ export default function Navbar() {
               )}
               {user && user.isAdmin && (
                 <NavLink href="/payments/history" currentPath={pathname} label="Payment History" mobile />
-              )}
-              {user && user.isAdmin && (
-                <NavLink href="/payments/failed" currentPath={pathname} label="Failed Payments" mobile />
               )}
               {user && user.isAdmin && (
                 <NavLink href="/admin" currentPath={pathname} label="Admin" mobile />
