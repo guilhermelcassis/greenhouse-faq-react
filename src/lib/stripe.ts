@@ -210,7 +210,7 @@ export async function getPaymentsByEmail(email: string): Promise<StripePaymentDa
     if (allMatchingCharges.length === 0) {
       let hasMore = true;
       let startingAfter: string | undefined = undefined;
-      const maxPages = 10; // Increase to handle more historical data
+      const maxPages = 50; // Increase to handle more historical data
       let currentPage = 0;
       
       // Paginate through charges to find all matches
@@ -245,9 +245,9 @@ export async function getPaymentsByEmail(email: string): Promise<StripePaymentDa
         }
         
         // If we found a reasonable number of matches already, we might stop pagination early
-        if (allMatchingCharges.length >= 5 && currentPage >= 3) {
-          hasMore = false;
-        }
+       // if (allMatchingCharges.length >= 5 && currentPage >= 3) {
+          //  hasMore = false;
+        //}
       }
     }
     
@@ -337,7 +337,7 @@ export async function getPaymentsByUserId(userId: string): Promise<StripePayment
     if (allMatchingCharges.length === 0) {
       let hasMore = true;
       let startingAfter: string | undefined = undefined;
-      const maxPages = 10;
+      const maxPages = 50;
       let currentPage = 0;
       
       while (hasMore && currentPage < maxPages) {
@@ -402,7 +402,7 @@ export async function getPaymentsByBillingEmail(email: string): Promise<StripePa
     let allMatchingCharges: Stripe.Charge[] = [];
     let hasMore = true;
     let startingAfter: string | undefined = undefined;
-    const maxPages = 10; // Limit how deep we go
+    const maxPages = 50; // Limit how deep we go
     let currentPage = 0;
     
     while (hasMore && currentPage < maxPages) {
@@ -501,28 +501,11 @@ export async function searchPayments(params: {
         
         if (customers.data.length > 0) {
           console.log(`Found ${customers.data.length} customers with email ${emailNormalized}`);
-          
-          // Check if one of them is the specific customer mentioned in the issue
-          const targetCustomerId = 'gcus_1R1FZvFaC9x6rmdUhR4CFmsV'; // The specific customer ID from the user's message
-          const targetCustomer = customers.data.find(c => c.id === targetCustomerId);
-          
-          if (targetCustomer) {
-            console.log(`Found the specific customer ${targetCustomerId} - prioritizing their payments`);
-            const targetCustomerPayments = await getPaymentsByCustomerId(targetCustomerId);
-            
-            // Add to results, avoiding duplicates
-            const existingIds = new Set(allResults.map(r => r.id));
-            const newResults = targetCustomerPayments.filter(r => !existingIds.has(r.id));
-            
-            allResults = [...allResults, ...newResults];
-            console.log(`Added ${newResults.length} payments from specific customer ${targetCustomerId}`);
-          }
+          console.log(`Customer details: ${customers.data.map(c => `${c.id} (${c.email})`).join(', ')}`);
           
           // Get payments for all customers with this email
           for (const customer of customers.data) {
-            if (customer.id === targetCustomerId) continue; // Skip if already processed
-            
-            console.log(`Getting payments for customer ${customer.id} (${customer.email})`);
+            console.log(`Getting payments for customer ${customer.id} (${customer.email || 'no-email'})`);
             const customerPayments = await getPaymentsByCustomerId(customer.id);
             
             // Add to results, avoiding duplicates
@@ -532,6 +515,8 @@ export async function searchPayments(params: {
             allResults = [...allResults, ...newResults];
             console.log(`Added ${newResults.length} payments from customer ${customer.id}`);
           }
+        } else {
+          console.log(`No customers found with email ${emailNormalized}`);
         }
       } catch (customerError) {
         console.error('Error finding customers by email:', customerError);
@@ -660,6 +645,15 @@ export async function getPaymentsByCustomerId(customerId: string): Promise<Strip
     });
     
     console.log(`Found ${charges.data.length} charges for customer ${customerId}`);
+    
+    if (charges.data.length > 0) {
+      // Log brief summary of each payment to help debugging
+      charges.data.forEach((charge, index) => {
+        console.log(`Payment ${index + 1}: ID=${charge.id}, Amount=${charge.amount} ${charge.currency}, Status=${charge.status}, Created=${new Date(charge.created * 1000).toISOString()}`);
+      });
+    } else {
+      console.log(`No payments found for customer ${customerId}`);
+    }
     
     // Process and return the charges
     return charges.data.map(charge => processCharge(charge));
