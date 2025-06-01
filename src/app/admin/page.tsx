@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
 import { Footer } from '@/components/Footer';
 import { User, Plus, Trash2, Save, X, CheckCircle, AlertCircle, PenSquare } from 'lucide-react';
-import { getCache, setCache, clearCache } from '@/lib/cache-utils';
 
 // User type interface with roles array instead of type field
 interface UserEmail {
@@ -139,18 +138,8 @@ export default function AdminPage() {
     try {
       setIsLoading(true);
       
-      // Check cache first
-      const cacheKey = 'admin_users_cache';
-      const cachedUsers = getCache<UserEmail[]>(cacheKey);
-      
-      if (cachedUsers) {
-        console.log(`[Cache] Using cached user data (${cachedUsers.length} users)`);
-        processUserData(cachedUsers);
-        setIsLoading(false);
-        return;
-      }
-      
-      console.log('[Cache] No valid cache found, fetching users from API');
+      // Skip cache and always fetch fresh data
+      console.log('[Admin] Fetching fresh user data from API');
       
       // Get the Firebase auth token
       const token = user ? await user.getIdToken() : null;
@@ -159,7 +148,9 @@ export default function AdminPage() {
       const response = await fetch('/api/admin/users', {
         headers: {
           'Authorization': `Bearer ${token}`
-        }
+        },
+        // Add cache: 'no-store' to prevent caching
+        cache: 'no-store'
       });
       
       if (!response.ok) {
@@ -175,12 +166,7 @@ export default function AdminPage() {
       const data = await response.json();
       console.log('Received user data:', data);
       
-      // Cache the users data
-      if (data.users && Array.isArray(data.users)) {
-        setCache(cacheKey, data.users);
-      }
-      
-      // Process the user data
+      // Process the user data without caching
       processUserData(data.users);
       
     } catch (error) {
@@ -235,9 +221,7 @@ export default function AdminPage() {
   // Function to refresh user data by clearing cache
   const refreshUserData = async () => {
     setIsRefreshing(true);
-    // Clear the cache
-    clearCache('admin_users_cache');
-    // Fetch fresh data
+    // No need to clear cache, just fetch fresh data
     await fetchUserEmails();
   };
 
@@ -700,26 +684,38 @@ export default function AdminPage() {
               <h2 className="text-2xl font-bold text-gradient-green">Add New Users</h2>
             </div>
             
-            {/* Add Refresh Button here */}
-            <button
-              onClick={refreshUserData}
-              disabled={isRefreshing || isLoading}
-              className="px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors flex items-center space-x-2"
-            >
-              {isRefreshing ? (
-                <>
-                  <div className="animate-spin h-4 w-4 border-2 border-blue-700 border-t-transparent rounded-full"></div>
-                  <span>Refreshing...</span>
-                </>
-              ) : (
-                <>
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                  </svg>
-                  <span>Refresh Data</span>
-                </>
-              )}
-            </button>
+
+            <div className="flex space-x-4">
+              {/* Bulk Delete Button */}
+              <button
+                onClick={() => router.push('/admin/bulk-delete')}
+                className="px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors flex items-center space-x-2"
+              >
+                <Trash2 className="h-4 w-4" />
+                <span>Bulk Delete Students</span>
+              </button>
+              
+              {/* Refresh Button */}
+              <button
+                onClick={refreshUserData}
+                disabled={isRefreshing || isLoading}
+                className="px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors flex items-center space-x-2"
+              >
+                {isRefreshing ? (
+                  <>
+                    <div className="animate-spin h-4 w-4 border-2 border-blue-700 border-t-transparent rounded-full"></div>
+                    <span>Refreshing...</span>
+                  </>
+                ) : (
+                  <>
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    <span>Refresh Data</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
           
           <div className="space-y-6">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, Suspense, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { CheckCircle, Home, User } from 'lucide-react';
@@ -23,7 +23,7 @@ function PaymentSuccessContent() {
   }, [searchParams]);
 
   // Function to sync payments data silently in the background
-  const syncPaymentsInBackground = async () => {
+  const syncPaymentsInBackground = useCallback(async () => {
     if (!user) return;
     
     try {
@@ -46,7 +46,7 @@ function PaymentSuccessContent() {
     } catch (error) {
       console.error('Error in background payment sync:', error);
     }
-  };
+  }, [user]);
   
   useEffect(() => {
     // Sync payments silently when the component mounts
